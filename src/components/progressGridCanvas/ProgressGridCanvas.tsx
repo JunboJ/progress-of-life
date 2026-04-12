@@ -116,12 +116,8 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
       setHidden(false);
       setHoveredDay(currentDate);
       onDateHover?.(currentDate);
-      return;
     }
-
-    setHidden(true);
-    setHoveredDay(null);
-    onDateHover?.(null);
+    // If no cell found (hovering over gap), keep the previous hover state
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
