@@ -1,0 +1,111 @@
+.size-default {
+  --cell-height: 10px;
+  --cell-width: 10px;
+}
+
+.size-mid {
+  --cell-width: 16px;
+  --cell-height: 16px;
+}
+
+.color-default {
+  --index-0: #d9ed92;
+  --index-1: #b5e48c;
+  --index-2: #99d98c;
+  --index-3: #76c893;
+  --index-4: #52b69a;
+  --index-5: #34a0a4;
+  --index-6: #168aad;
+  --index-7: #1a759f;
+  --index-8: #1e6091;
+  --index-9: #184e77;
+}
+
+.color-ful {
+  --index-0: #ff9cb6;
+  --index-1: #e93aa3;
+  --index-2: #e03024;
+  --index-3: #f27100;
+  --index-4: #ffc338;
+  --index-5: #9ab522;
+  --index-6: #0d3626;
+  --index-7: #224c98;
+  --index-8: #72cfc8;
+  --index-9: #b691e3;
+}
+
+.root {
+  background-color: var(--background-root);
+}
+
+.cell {
+  min-height: var(--cell-height);
+  min-width: var(--cell-width);
+  height: var(--cell-height);
+  width: var(--cell-width);
+  outline: 1px solid rgba(30, 30, 30, 0.05);
+  background-color: rgba(30, 30, 30, 0.1);
+  outline-offset: -1px;
+  padding: 0;
+  transition: box-shadow 0.2s ease-out;
+  border-radius: 2px;
+}
+
+.cell:hover {
+  position: relative;
+  box-shadow:
+    0 0 20px 10px rgba(255, 255, 255, 0.8),
+    0 0 30px 15px rgba(255, 255, 255, 0.5),
+    0 0 50px 30px rgba(255, 255, 255, 0.3);
+  z-index: 10;
+}
+
+.progress-table {
+  border-spacing: 3px;
+}
+
+.cell:not([data-index-of-year="-1"]) {
+  background-color: #0b3d91;
+}
+
+/*
+.cell[data-index-of-year="0"] {
+  background-color: var(--index-0);
+}
+
+.cell[data-index-of-year="1"] {
+  background-color: var(--index-1);
+}
+
+.cell[data-index-of-year="2"] {
+  background-color: var(--index-2);
+}
+
+.cell[data-index-of-year="3"] {
+  background-color: var(--index-3);
+}
+
+.cell[data-index-of-year="4"] {
+  background-color: var(--index-4);
+}
+
+.cell[data-index-of-year="5"] {
+  background-color: var(--index-5);
+}
+
+.cell[data-index-of-year="6"] {
+  background-color: var(--index-6);
+}
+
+.cell[data-index-of-year="7"] {
+  background-color: var(--index-7);
+}
+
+.cell[data-index-of-year="8"] {
+  background-color: var(--index-8);
+}
+
+.cell[data-index-of-year="9"] {
+  background-color: var(--index-9);
+}
+*/

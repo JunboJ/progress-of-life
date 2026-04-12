@@ -1,0 +1,13 @@
+.cellTooltip {
+  background-color: white;
+  border-radius: 6px;
+  padding: 6px;
+  box-shadow: 3px 3px 3px rgba(30, 30, 30, 0.2);
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.cellTooltipHidden {
+  display: none;
+}

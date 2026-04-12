@@ -1,0 +1,8 @@
+.night-mode-color {
+  --background-root: #ffffff;
+  --background-table-cell: #232323;
+}
+
+body {
+  margin: 0;
+}

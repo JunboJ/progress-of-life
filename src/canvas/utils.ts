@@ -1,0 +1,77 @@
+import { CalendarStyle } from './style';
+
+export const calculateCalendarDimension = (calendarStyle: CalendarStyle, { numberOfCells, canvasWidth }: { numberOfCells: number, canvasWidth: number }) => {
+  const numberOfCols = Math.floor((canvasWidth - calendarStyle.paddingLeft - calendarStyle.paddingRight - calendarStyle.cellGap) / (calendarStyle.cellWidth + calendarStyle.cellGap))
+  const computedExtraPaddingHorizontal = Math.floor((canvasWidth - calendarStyle.paddingLeft - calendarStyle.paddingRight - calendarStyle.cellGap) % (calendarStyle.cellWidth + calendarStyle.cellGap))
+  const computedPaddingLeft = computedExtraPaddingHorizontal / 2 + calendarStyle.paddingLeft
+  const numberOfRows = Math.floor(numberOfCells / numberOfCols)
+  const daysOfLastRow = numberOfCells % numberOfCols
+
+  return { numberOfCells, numberOfCols, computedExtraPaddingHorizontal, computedPaddingLeft, numberOfRows, daysOfLastRow }
+}
+
+export interface CalendarCellPosition {
+  cellIndex: number
+  row: number
+  col: number
+}
+
+export const getCalendarCellFromPoint = (
+  calendarStyle: CalendarStyle,
+  {
+    numberOfCells,
+    canvasWidth,
+    pointX,
+    pointY,
+  }: {
+    numberOfCells: number
+    canvasWidth: number
+    pointX: number
+    pointY: number
+  },
+): CalendarCellPosition | null => {
+  const { numberOfCols, computedPaddingLeft, numberOfRows, daysOfLastRow } = calculateCalendarDimension(calendarStyle, {
+    numberOfCells,
+    canvasWidth,
+  })
+
+  const cellWidth = calendarStyle.cellWidth
+  const cellHeight = calendarStyle.cellHeight
+  const cellGap = calendarStyle.cellGap
+  const offsetX = pointX - computedPaddingLeft
+  const offsetY = pointY - calendarStyle.paddingTop
+
+  if (offsetX < 0 || offsetY < 0) {
+    return null
+  }
+
+  const row = Math.floor(offsetY / (cellHeight + cellGap))
+  const rowY = row * (cellHeight + cellGap)
+  if (offsetY > rowY + cellHeight) {
+    return null
+  }
+
+  const col = Math.floor(offsetX / (cellWidth + cellGap))
+  const colX = col * (cellWidth + cellGap)
+  if (offsetX > colX + cellWidth) {
+    return null
+  }
+
+  const totalRows = numberOfRows + (daysOfLastRow > 0 ? 1 : 0)
+  if (row >= totalRows) {
+    return null
+  }
+
+  const columnsInRow = row === numberOfRows && daysOfLastRow > 0 ? daysOfLastRow : numberOfCols
+  if (col >= columnsInRow) {
+    return null
+  }
+
+  const cellIndex = row * numberOfCols + col
+  if (cellIndex >= numberOfCells) {
+    return null
+  }
+
+  return { cellIndex, row, col }
+}
+

@@ -1,0 +1,1 @@
+export type FillRectOptions = { x: number, y: number, w: number, h: number, backgroundColor?: string }
