@@ -144,6 +144,7 @@ export const drawMultiRowOutline = (
   bounds: RowOutlineBounds[],
   color: string,
   lineWidth: number = 2,
+  unit: 'year' | 'month' | 'week' = 'month',
 ) => {
   if (bounds.length === 0) return;
 
@@ -151,10 +152,59 @@ export const drawMultiRowOutline = (
   ctx.strokeStyle = color;
   ctx.lineWidth = lineWidth;
 
-  // Draw separate outlines for each row segment
-  bounds.forEach((bound) => {
-    ctx.strokeRect(bound.minX, bound.minY, bound.maxX - bound.minX, bound.maxY - bound.minY);
-  });
+  if (unit === 'year') {
+    // For year: draw a continuous outline that respects cell boundaries without internal borders
+    ctx.beginPath();
+
+    // Start from top-left of first bound
+    ctx.moveTo(bounds[0].minX, bounds[0].minY);
+
+    // Trace top edge of first row
+    ctx.lineTo(bounds[0].maxX, bounds[0].minY);
+
+    // Trace right edges and handle transitions
+    for (let i = 0; i < bounds.length; i++) {
+      const current = bounds[i];
+      const next = bounds[i + 1];
+
+      // Right edge down to bottom of current row
+      ctx.lineTo(current.maxX, current.maxY);
+
+      // Handle transition to next row
+      if (next) {
+        // If next row's right edge is different, create a step
+        if (next.maxX !== current.maxX) {
+          ctx.lineTo(next.maxX, current.maxY);
+        }
+      }
+    }
+
+    // Trace bottom edge of last row (going left)
+    const lastBound = bounds[bounds.length - 1];
+    ctx.lineTo(lastBound.minX, lastBound.maxY);
+
+    // Trace left edges going back up, handling transitions
+    for (let i = bounds.length - 1; i >= 0; i--) {
+      const current = bounds[i];
+      const prev = bounds[i - 1];
+
+      // Left edge up to top of current row
+      ctx.lineTo(current.minX, current.minY);
+
+      // Handle transition to previous row
+      if (prev && prev.minX !== current.minX) {
+        ctx.lineTo(prev.minX, current.minY);
+      }
+    }
+
+    ctx.closePath();
+    ctx.stroke();
+  } else {
+    // For month/week: draw separate outlines for each row segment (no connecting lines)
+    bounds.forEach((bound) => {
+      ctx.strokeRect(bound.minX, bound.minY, bound.maxX - bound.minX, bound.maxY - bound.minY);
+    });
+  }
 
   ctx.restore();
 };

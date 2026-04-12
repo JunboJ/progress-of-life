@@ -129,19 +129,19 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
           // Draw year outline
           const yearBounds = getOutlineBounds(startDate, hoveredDay, days, gridWidth, 'year', calendarStyle);
           if (yearBounds) {
-            drawMultiRowOutline(ctx, yearBounds, '#FF6B6B', 3);
+            drawMultiRowOutline(ctx, yearBounds, '#FF6B6B', 3, 'year');
           }
 
           // Draw month outline
           const monthBounds = getOutlineBounds(startDate, hoveredDay, days, gridWidth, 'month', calendarStyle);
           if (monthBounds) {
-            drawMultiRowOutline(ctx, monthBounds, '#4ECDC4', 3);
+            drawMultiRowOutline(ctx, monthBounds, '#4ECDC4', 3, 'month');
           }
 
           // Draw week outline
           const weekBounds = getOutlineBounds(startDate, hoveredDay, days, gridWidth, 'week', calendarStyle);
           if (weekBounds) {
-            drawMultiRowOutline(ctx, weekBounds, '#FFE66D', 3);
+            drawMultiRowOutline(ctx, weekBounds, '#FFE66D', 3, 'week');
           }
         }
       }
