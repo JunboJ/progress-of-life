@@ -2,7 +2,9 @@ import { Dayjs } from 'dayjs';
 import React, { useEffect, useRef, useState } from 'react';
 import { useHtmlClientDimension } from '../../hooks/utils/useHtmlClientWidth';
 import { paintCanvas } from '../../canvas/paint';
-import { useTooltipStore } from '../../store/tooltipStore';
+import { useTooltip } from '../../hooks/useTooltip';
+import { useCanvasInteraction } from '../../hooks/useCanvasInteraction';
+import { setupCanvas } from '../../utils/canvasSetup';
 import { CalendarStyle } from '../../canvas/style';
 import { getCalendarCellFromPoint, calculateCanvasDimensions } from '../../canvas/utils';
 import { getOutlineBounds, drawMultiRowOutline } from '../../canvas/outlineUtils';
@@ -24,17 +26,11 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const dragging = useRef(false);
-  const lastPointer = useRef({ x: 0, y: 0 });
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [scale, setScale] = useState(1);
   const [gridWidth, setGridWidth] = useState(4000);
   const [hoveredDay, setHoveredDay] = useState<Dayjs | null>(null);
   const { htmlClientWidth, htmlClientHeight } = useHtmlClientDimension();
-  const updatePositionX = useTooltipStore((state) => state.updatePositionX);
-  const updatePositionY = useTooltipStore((state) => state.updatePositionY);
-  const setHidden = useTooltipStore((state) => state.setHidden);
-  const setContent = useTooltipStore((state) => state.setContent);
+  const { showTooltip, hideTooltip } = useTooltip();
+  const { offset, scale, handlePointerDown, handlePointerMove, handlePointerUp, handleWheel } = useCanvasInteraction();
 
   const { canvasWidth, canvasHeight } = calculateCanvasDimensions(CalendarStyle, {
     numberOfCells: days,
@@ -46,16 +42,7 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   useEffect(() => {
     if (canvasRef.current) {
       const canvas = canvasRef.current;
-      canvas.width = canvasWidth * dpr;
-      canvas.height = canvasHeight * dpr;
-      canvas.style.width = `${canvasWidth}px`;
-      canvas.style.height = `${canvasHeight}px`;
-
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.scale(dpr, dpr);
-      }
-
+      setupCanvas(canvas, canvasWidth, canvasHeight, dpr);
       console.log('Canvas updated:', { gridWidth, days, canvasWidth, canvasHeight, dpr });
       paintCanvas(canvas, { numberOfCells: days, canvasWidth: gridWidth, startDate, today });
     }
@@ -64,14 +51,8 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   useEffect(() => {
     if (overlayCanvasRef.current) {
       const canvas = overlayCanvasRef.current;
-      canvas.width = canvasWidth * dpr;
-      canvas.height = canvasHeight * dpr;
-      canvas.style.width = `${canvasWidth}px`;
-      canvas.style.height = `${canvasHeight}px`;
-
-      const ctx = canvas.getContext('2d');
+      const ctx = setupCanvas(canvas, canvasWidth, canvasHeight, dpr);
       if (ctx) {
-        ctx.scale(dpr, dpr);
         ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
         if (hoveredDay) {
@@ -125,73 +106,34 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
 
     if (cell) {
       const currentDate = startDate.add(cell.cellIndex, 'day');
-      updatePositionX(clientX);
-      updatePositionY(clientY);
-      setContent(currentDate.format('YYYY-MM-DD'));
-      setHidden(false);
+      showTooltip(clientX, clientY, currentDate.format('YYYY-MM-DD'));
       setHoveredDay(currentDate);
       onDateHover?.(currentDate);
     }
     // If no cell found (hovering over gap), keep the previous hover state
   };
 
-  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) {
-      return;
-    }
-
-    dragging.current = true;
-    lastPointer.current = { x: event.clientX, y: event.clientY };
-    event.currentTarget.setPointerCapture(event.pointerId);
+  const handlePointerDownWrapper = (event: React.PointerEvent<HTMLDivElement>) => {
+    handlePointerDown(event);
   };
 
-  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+  const handlePointerMoveWrapper = (event: React.PointerEvent<HTMLDivElement>) => {
     updateHover(event.clientX, event.clientY);
-
-    if (!dragging.current) {
-      return;
-    }
-
-    const dx = event.clientX - lastPointer.current.x;
-    const dy = event.clientY - lastPointer.current.y;
-    setOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
-    lastPointer.current = { x: event.clientX, y: event.clientY };
+    handlePointerMove(event);
   };
 
-  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
-    dragging.current = false;
-    event.currentTarget.releasePointerCapture(event.pointerId);
+  const handlePointerUpWrapper = (event: React.PointerEvent<HTMLDivElement>) => {
+    handlePointerUp(event);
+  };
+
+  const handleWheelWrapper = (event: React.WheelEvent<HTMLDivElement>) => {
+    handleWheel(event, wrapperRef);
   };
 
   const handlePointerLeave = () => {
-    setHidden(true);
+    hideTooltip();
     setHoveredDay(null);
     onDateHover?.(null);
-  };
-
-  const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
-    if (!wrapperRef.current) {
-      return;
-    }
-
-    event.preventDefault();
-    const previousScale = scale;
-    const nextScale = Math.min(3, Math.max(0.1, scale * (event.deltaY > 0 ? 0.9 : 1.1)));
-    if (nextScale === previousScale) {
-      return;
-    }
-
-    const rect = wrapperRef.current.getBoundingClientRect();
-    const point = {
-      x: (event.clientX - rect.left - offset.x) / previousScale,
-      y: (event.clientY - rect.top - offset.y) / previousScale,
-    };
-
-    setScale(nextScale);
-    setOffset({
-      x: event.clientX - rect.left - point.x * nextScale,
-      y: event.clientY - rect.top - point.y * nextScale,
-    });
   };
 
   return (
@@ -205,11 +147,11 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
         backgroundColor: '#23272e',
         position: 'relative',
       }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      onWheel={handleWheel}
+      onPointerDown={handlePointerDownWrapper}
+      onPointerMove={handlePointerMoveWrapper}
+      onPointerUp={handlePointerUpWrapper}
+      onPointerCancel={handlePointerUpWrapper}
+      onWheel={handleWheelWrapper}
       onPointerLeave={handlePointerLeave}
     >
       <canvas
@@ -220,8 +162,6 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
           transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
           transformOrigin: '0 0',
           display: 'block',
-          imageRendering: 'crisp-edges',
-          imageRendering: '-webkit-crisp-edges',
           imageRendering: 'pixelated',
         }}
       />
@@ -236,8 +176,6 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
           transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
           transformOrigin: '0 0',
           display: 'block',
-          imageRendering: 'crisp-edges',
-          imageRendering: '-webkit-crisp-edges',
           imageRendering: 'pixelated',
           pointerEvents: 'none',
         }}

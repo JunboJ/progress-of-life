@@ -100,3 +100,25 @@ export const getCalendarCellFromPoint = (
   return { cellIndex, row, col }
 }
 
+export const calculateTableGridDimensions = (
+  cellSize: number,
+  gap: number,
+  containerWidth: number,
+  numberOfCells: number
+) => {
+  const numOfCols = Math.floor((containerWidth - gap) / (cellSize + gap));
+  const remainOfLastRow = numberOfCells % numOfCols;
+  const numOfRows = remainOfLastRow === 0 ? numberOfCells / numOfCols : Math.floor(numberOfCells / numOfCols) + 1;
+
+  const isLastRowWithRemain = (rowIndex: number) => rowIndex === numOfRows - 1 && remainOfLastRow !== 0;
+  const getNumOfCols = (rowIndex: number) => isLastRowWithRemain(rowIndex) ? remainOfLastRow : numOfCols;
+
+  return {
+    numOfCols,
+    numOfRows,
+    remainOfLastRow,
+    isLastRowWithRemain,
+    getNumOfCols,
+  };
+};
+

@@ -1,5 +1,6 @@
 import { Dayjs } from "dayjs";
-import { useTooltipStore } from "../../store/tooltipStore";
+import { useTooltip } from "../../hooks/useTooltip";
+import { calculateTableGridDimensions } from "../../canvas/utils";
 
 const cellConfig = {
   sizes: {
@@ -16,44 +17,32 @@ const cellConfig = {
 
 export const ProgressGridTable = ({
   startDate,
-  endDate,
   today,
   days,
 }: {
   days: number;
   startDate: Dayjs;
-  endDate: Dayjs;
   today: Dayjs;
 }) => {
-  const updatePositionY = useTooltipStore((state) => state.updatePositionY);
-  const updatePositionX = useTooltipStore((state) => state.updatePositionX);
-  const setHidden = useTooltipStore((state) => state.setHidden);
-  const setContent = useTooltipStore((state) => state.setContent);
+  const { showTooltip, hideTooltip, updateTooltipPosition } = useTooltip();
 
-  const numOfCols = Math.floor(
-    (window.innerWidth - (cellConfig.sizes.default.size + 6)) /
-      (cellConfig.sizes.default.size + 3),
+  const { numOfCols, numOfRows, getNumOfCols } = calculateTableGridDimensions(
+    cellConfig.sizes.default.size,
+    3,
+    window.innerWidth - (cellConfig.sizes.default.size + 6),
+    days
   );
-  const remainOfLastRow = days % numOfCols;
-  const numOfRows =
-    remainOfLastRow === 0 ? days / numOfCols : Math.floor(days / numOfCols) + 1;
-
-  const isLastRowWithRemain = (rowIndex: number) =>
-    rowIndex === numOfRows - 1 && remainOfLastRow !== 0;
-  const getNumOfCols = (rowIndex: number) =>
-    isLastRowWithRemain(rowIndex) ? remainOfLastRow : numOfCols;
   return (
     <table
       className="progress-table"
       onMouseEnter={() => {
-        setHidden(false);
+        // Tooltip is shown on hover over cells
       }}
       onMouseLeave={() => {
-        setHidden(true);
+        hideTooltip();
       }}
       onMouseMove={(e) => {
-        updatePositionX(e.clientX);
-        updatePositionY(e.clientY);
+        updateTooltipPosition(e.clientX, e.clientY);
       }}
     >
       <tbody>
@@ -80,9 +69,10 @@ export const ProgressGridTable = ({
                         }
                         className={`cell ${cellConfig.sizes.mid.className}`}
                         onMouseEnter={(e) => {
-                          setContent(
-                            (e.target as HTMLTableCellElement).dataset
-                              ?.tooltipContent ?? "",
+                          showTooltip(
+                            e.clientX,
+                            e.clientY,
+                            (e.target as HTMLTableCellElement).dataset?.tooltipContent ?? "",
                           );
                         }}
                       ></td>

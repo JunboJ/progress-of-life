@@ -1,4 +1,5 @@
 import { useTooltipStore } from "../../store/tooltipStore";
+import { calculateTooltipPosition } from "../../utils/tooltipPosition";
 import styles from "./CellTooltip.module.css";
 
 const CellTooltipConfig = {
@@ -9,9 +10,6 @@ const CellTooltipConfig = {
 };
 
 export const CellTooltip = () => {
-  const clientWidth = document.body.clientWidth;
-  const scrollbarWidth = window.innerWidth - document.body.clientWidth;
-
   const positionX = useTooltipStore((state) => state.positionX) + 16;
   const positionY = useTooltipStore((state) => state.positionY) + 16;
   const hidden = useTooltipStore((state) => state.hidden);
@@ -19,14 +17,11 @@ export const CellTooltip = () => {
 
   console.log('CellTooltip render:', { positionX, positionY, hidden, content })
 
-  const calculatedPositionX =
-    positionX + CellTooltipConfig.size.width > clientWidth - 16
-      ? clientWidth - CellTooltipConfig.size.width - scrollbarWidth
-      : positionX;
-  const calculatedPositionY =
-    positionY + CellTooltipConfig.size.height > window.innerHeight
-      ? window.innerHeight - CellTooltipConfig.size.height
-      : positionY;
+  const { x: calculatedPositionX, y: calculatedPositionY } = calculateTooltipPosition(
+    positionX,
+    positionY,
+    CellTooltipConfig.size
+  );
 
   return (
     <div
