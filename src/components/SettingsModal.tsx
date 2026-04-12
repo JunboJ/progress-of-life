@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Dayjs } from "dayjs";
+import Modal from "./Modal";
 import "./SettingsModal.css";
 
 interface SettingsModalProps {
@@ -47,63 +48,52 @@ const SettingsModal = ({
         ⚙️ Settings
       </button>
 
-      {open ? (
-        <div className="settings-modal-overlay" onClick={close}>
-          <div className="settings-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="settings-header">
-              <h2>App Settings</h2>
-              <button className="modal-close-btn" onClick={close}>
-                ×
-              </button>
-            </div>
-
-            <div className="settings-field">
-              <label>Life span (years)</label>
-              <input
-                type="number"
-                min={1}
-                value={draftLifeSpan}
-                onChange={(e) => setDraftLifeSpan(Number(e.target.value))}
-              />
-            </div>
-
-            <div className="settings-field">
-              <label>Date of birth</label>
-              <input
-                type="date"
-                value={draftDob}
-                onChange={(e) => setDraftDob(e.target.value)}
-                max={today.format("YYYY-MM-DD")}
-              />
-            </div>
-
-            <div className="settings-field settings-switch-row">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={draftUseTable}
-                  onChange={(e) => setDraftUseTable(e.target.checked)}
-                />
-                Use Table Grid System
-              </label>
-            </div>
-
-            <div className="settings-summary">
-              <span>months lived: {months}</span>
-              <span>days lived: {daysLived}</span>
-            </div>
-
-            <div className="settings-footer">
-              <button type="button" className="button button-secondary" onClick={close}>
-                Cancel
-              </button>
-              <button type="button" className="button button-primary" onClick={save}>
-                Save
-              </button>
-            </div>
-          </div>
+      <Modal open={open} title="App Settings" onClose={close}>
+        <div className="settings-field">
+          <label>Life span (years)</label>
+          <input
+            type="number"
+            min={1}
+            value={draftLifeSpan}
+            onChange={(e) => setDraftLifeSpan(Number(e.target.value))}
+          />
         </div>
-      ) : null}
+
+        <div className="settings-field">
+          <label>Date of birth</label>
+          <input
+            type="date"
+            value={draftDob}
+            onChange={(e) => setDraftDob(e.target.value)}
+            max={today.format("YYYY-MM-DD")}
+          />
+        </div>
+
+        <div className="settings-field settings-switch-row">
+          <label>
+            <input
+              type="checkbox"
+              checked={draftUseTable}
+              onChange={(e) => setDraftUseTable(e.target.checked)}
+            />
+            Use Table Grid System
+          </label>
+        </div>
+
+        <div className="settings-summary">
+          <span>months lived: {months}</span>
+          <span>days lived: {daysLived}</span>
+        </div>
+
+        <div className="settings-footer">
+          <button type="button" className="button button-secondary" onClick={close}>
+            Cancel
+          </button>
+          <button type="button" className="button button-primary" onClick={save}>
+            Save
+          </button>
+        </div>
+      </Modal>
     </>
   );
 };
