@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import { ProgressGridTable } from "./components/progressGridTable/ProgressGridTable";
 import { CellTooltip } from "./components/cellTooltip/CellTooltip";
 import ProgressGridCanvas from "./components/progressGridCanvas/ProgressGridCanvas";
+import SettingsModal from "./components/SettingsModal";
 
 function App() {
   const [lifeSpan, setLifeSpan] = useState<number>(80);
@@ -19,52 +20,42 @@ function App() {
   const days = dayjs(endDate).diff(startDate, "d");
   const daysLived = dayjs().diff(startDate, "d");
 
-  console.log("====== window", window.screen.availWidth);
-  console.log("====== html", document.querySelector('html')?.clientWidth);
+  const handleSaveSettings = (newLifeSpan: number, newDob: string, newUseTable: boolean) => {
+    setLifeSpan(newLifeSpan);
+    setDob(newDob);
+    setUseTable(newUseTable);
+  };
 
   return (
-    <div className="root night-mode-color">
-      {dob ? null : (
-        <span>Without a date of birth the date will be inaccurate.</span>
-      )}
-      <span>Input your life span: ({lifeSpan})</span>
-      <input
-        type="number"
-        placeholder="Your life span"
-        value={lifeSpan}
-        onChange={(e) => {
-          setLifeSpan(Math.floor(Number(e.target.value)));
-        }}
-      />
-      <span>Input your date of birth:</span>
-      <input
-        type="date"
-        value={dob}
-        onChange={(e) => {
-          setDob(e.target.value);
-        }}
-        max={today.format("YYYY-MM-DD")}
-      />
-      <label style={{ display: "block", margin: "10px 0" }}>
-        <input
-          type="checkbox"
-          onChange={() => {
-            setUseTable((prev) => !prev);
-          }}
-          checked={useTable}
-        />
-        Use Table Grid System
-      </label>
-      <span>months lived: {months}</span>
-      <span>days lived: {daysLived}</span>
-      <div className="cell-container">
-        <ProgressGridCanvas
+    <div className="app-root root night-mode-color">
+      <div className="canvas-area">
+        {useTable ? (
+          <ProgressGridTable
             startDate={startDate}
             endDate={endDate}
             today={today}
-            days={days} />
+            days={days}
+          />
+        ) : (
+          <ProgressGridCanvas
+            startDate={startDate}
+            endDate={endDate}
+            today={today}
+            days={days}
+          />
+        )}
         <CellTooltip />
       </div>
+
+      <SettingsModal
+        lifeSpan={lifeSpan}
+        dob={dob}
+        useTable={useTable}
+        today={today}
+        months={months}
+        daysLived={daysLived}
+        onSave={handleSaveSettings}
+      />
     </div>
   );
 }
