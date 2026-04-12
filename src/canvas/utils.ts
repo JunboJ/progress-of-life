@@ -1,5 +1,30 @@
 import { CalendarStyle } from './style';
 
+export const calculateCanvasDimensions = (
+  calendarStyle: CalendarStyle,
+  { numberOfCells, gridWidth }: { numberOfCells: number; gridWidth: number },
+) => {
+  const dimensions = calculateCalendarDimension(calendarStyle, {
+    numberOfCells,
+    canvasWidth: gridWidth,
+  });
+
+  const totalRows = dimensions.numberOfRows + (dimensions.daysOfLastRow > 0 ? 1 : 0);
+  const canvasHeight =
+    calendarStyle.paddingTop +
+    totalRows * calendarStyle.cellHeight +
+    (totalRows - 1) * calendarStyle.cellGap +
+    calendarStyle.paddingBottom;
+
+  return {
+    canvasWidth: gridWidth,
+    canvasHeight,
+    numberOfCols: dimensions.numberOfCols,
+    numberOfRows: dimensions.numberOfRows,
+    daysOfLastRow: dimensions.daysOfLastRow,
+  };
+};
+
 export const calculateCalendarDimension = (calendarStyle: CalendarStyle, { numberOfCells, canvasWidth }: { numberOfCells: number, canvasWidth: number }) => {
   const numberOfCols = Math.floor((canvasWidth - calendarStyle.paddingLeft - calendarStyle.paddingRight - calendarStyle.cellGap) / (calendarStyle.cellWidth + calendarStyle.cellGap))
   const computedExtraPaddingHorizontal = Math.floor((canvasWidth - calendarStyle.paddingLeft - calendarStyle.paddingRight - calendarStyle.cellGap) % (calendarStyle.cellWidth + calendarStyle.cellGap))

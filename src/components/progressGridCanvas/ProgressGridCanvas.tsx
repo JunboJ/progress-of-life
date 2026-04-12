@@ -4,7 +4,7 @@ import { useHtmlClientDimension } from '../../hooks/utils/useHtmlClientWidth';
 import { paintCanvas } from '../../canvas/paint';
 import { useTooltipStore } from '../../store/tooltipStore';
 import { CalendarStyle } from '../../canvas/style';
-import { getCalendarCellFromPoint } from '../../canvas/utils';
+import { getCalendarCellFromPoint, calculateCanvasDimensions } from '../../canvas/utils';
 
 interface ProgressGridCanvasProps {
   days: number;
@@ -13,6 +13,8 @@ interface ProgressGridCanvasProps {
   today: Dayjs;
   onDateHover?: (date: Dayjs | null) => void;
 }
+
+const GRID_WIDTH = 4000;
 
 const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   startDate,
@@ -31,11 +33,19 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   const setHidden = useTooltipStore((state) => state.setHidden);
   const setContent = useTooltipStore((state) => state.setContent);
 
+  const { canvasWidth, canvasHeight } = calculateCanvasDimensions(CalendarStyle, {
+    numberOfCells: days,
+    gridWidth: GRID_WIDTH,
+  });
+
   useEffect(() => {
     if (canvasRef.current) {
-      paintCanvas(canvasRef.current, { numberOfCells: days, canvasWidth: htmlClientWidth });
+      canvasRef.current.width = canvasWidth;
+      canvasRef.current.height = canvasHeight;
+      console.log('Canvas updated:', { GRID_WIDTH, days, canvasWidth, canvasHeight, dpr: window.devicePixelRatio });
+      paintCanvas(canvasRef.current, { numberOfCells: days, canvasWidth: GRID_WIDTH });
     }
-  }, [days, htmlClientWidth, htmlClientHeight]);
+  }, [days, canvasWidth, canvasHeight]);
 
   const toCanvasPoint = (clientX: number, clientY: number) => {
     const wrapper = wrapperRef.current;
@@ -51,15 +61,14 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   };
 
   const updateHover = (clientX: number, clientY: number) => {
-    const canvas = canvasRef.current;
     const point = toCanvasPoint(clientX, clientY);
-    if (!canvas || !point) {
+    if (!point) {
       return;
     }
 
     const cell = getCalendarCellFromPoint(CalendarStyle, {
       numberOfCells: days,
-      canvasWidth: canvas.width,
+      canvasWidth: GRID_WIDTH,
       pointX: point.x,
       pointY: point.y,
     });
@@ -144,6 +153,7 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
         height: htmlClientHeight,
         overflow: 'hidden',
         touchAction: 'none',
+        backgroundColor: '#23272e',
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -154,13 +164,11 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
     >
       <canvas
         ref={canvasRef}
-        width={htmlClientWidth}
-        height={htmlClientHeight}
+        width={canvasWidth}
+        height={canvasHeight}
         style={{
           transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
           transformOrigin: '0 0',
-          width: htmlClientWidth,
-          height: htmlClientHeight,
           display: 'block',
         }}
       />

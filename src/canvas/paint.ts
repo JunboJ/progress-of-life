@@ -26,6 +26,9 @@ export const paintCanvas = (canvas: HTMLCanvasElement, { numberOfCells, canvasWi
     return;
   }
 
+  const totalRendered = numberOfRows * numberOfCols + daysOfLastRow;
+  console.log('paintCanvas:', { numberOfCells, canvasWidth, numberOfCols, numberOfRows, daysOfLastRow, totalRendered, match: totalRendered === numberOfCells });
+
   ctx.fillStyle = '#23272e';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
