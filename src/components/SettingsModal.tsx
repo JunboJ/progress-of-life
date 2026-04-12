@@ -7,10 +7,16 @@ interface SettingsModalProps {
   lifeSpan: number;
   dob: string;
   useTable: boolean;
+  collapseGridGap: boolean;
   today: Dayjs;
   months: number;
   daysLived: number;
-  onSave: (lifeSpan: number, dob: string, useTable: boolean) => void;
+  onSave: (
+    lifeSpan: number,
+    dob: string,
+    useTable: boolean,
+    collapseGridGap: boolean,
+  ) => void;
   autoOpen: boolean;
   onAutoOpenHandled: () => void;
 }
@@ -19,6 +25,7 @@ const SettingsModal = ({
   lifeSpan,
   dob,
   useTable,
+  collapseGridGap,
   today,
   months,
   daysLived,
@@ -30,14 +37,16 @@ const SettingsModal = ({
   const [draftLifeSpan, setDraftLifeSpan] = useState<number>(lifeSpan);
   const [draftDob, setDraftDob] = useState(dob);
   const [draftUseTable, setDraftUseTable] = useState(useTable);
+  const [draftCollapseGridGap, setDraftCollapseGridGap] = useState(collapseGridGap);
 
   useEffect(() => {
     if (open) {
       setDraftLifeSpan(lifeSpan);
       setDraftDob(dob);
       setDraftUseTable(useTable);
+      setDraftCollapseGridGap(collapseGridGap);
     }
-  }, [open, lifeSpan, dob, useTable]);
+  }, [open, lifeSpan, dob, useTable, collapseGridGap]);
 
   useEffect(() => {
     if (autoOpen && !open) {
@@ -49,7 +58,12 @@ const SettingsModal = ({
   const close = () => setOpen(false);
 
   const save = () => {
-    onSave(Math.max(1, Math.floor(draftLifeSpan)), draftDob, draftUseTable);
+    onSave(
+      Math.max(1, Math.floor(draftLifeSpan)),
+      draftDob,
+      draftUseTable,
+      draftCollapseGridGap,
+    );
     close();
   };
 
@@ -94,6 +108,17 @@ const SettingsModal = ({
               onChange={(e) => setDraftUseTable(e.target.checked)}
             />
             Use Table Grid System
+          </label>
+        </div>
+
+        <div className="settings-field settings-switch-row">
+          <label>
+            <input
+              type="checkbox"
+              checked={draftCollapseGridGap}
+              onChange={(e) => setDraftCollapseGridGap(e.target.checked)}
+            />
+            Remove grid gaps for a seamless layout
           </label>
         </div>
 

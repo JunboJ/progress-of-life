@@ -16,12 +16,13 @@ export interface RowOutlineBounds extends OutlineBounds {
 const getCellPosition = (
   cellIndex: number,
   { numberOfCols, computedPaddingLeft }: ReturnType<typeof calculateCalendarDimension>,
+  calendarStyle: CalendarStyle,
 ) => {
   const row = Math.floor(cellIndex / numberOfCols);
   const col = cellIndex % numberOfCols;
   const x =
-    col === 0 ? computedPaddingLeft : (CalendarStyle.cellWidth + CalendarStyle.cellGap) * col + computedPaddingLeft;
-  const y = row === 0 ? CalendarStyle.paddingTop : (CalendarStyle.cellHeight + CalendarStyle.cellGap) * row + CalendarStyle.paddingTop;
+    col === 0 ? computedPaddingLeft : (calendarStyle.cellWidth + calendarStyle.cellGap) * col + computedPaddingLeft;
+  const y = row === 0 ? calendarStyle.paddingTop : (calendarStyle.cellHeight + calendarStyle.cellGap) * row + calendarStyle.paddingTop;
   return { x, y, row, col };
 };
 
@@ -35,8 +36,9 @@ export const getOutlineBounds = (
   numberOfCells: number,
   gridWidth: number,
   unit: 'year' | 'month' | 'week',
+  calendarStyle: CalendarStyle,
 ): RowOutlineBounds[] | null => {
-  const dimensions = calculateCalendarDimension(CalendarStyle, { numberOfCells, canvasWidth: gridWidth });
+  const dimensions = calculateCalendarDimension(calendarStyle, { numberOfCells, canvasWidth: gridWidth });
 
   let groupStartDate: Dayjs;
   let groupEndDate: Dayjs;
@@ -71,8 +73,8 @@ export const getOutlineBounds = (
     return null;
   }
 
-  const startPos = getCellPosition(startIndex, dimensions);
-  const endPos = getCellPosition(endIndex, dimensions);
+  const startPos = getCellPosition(startIndex, dimensions, calendarStyle);
+  const endPos = getCellPosition(endIndex, dimensions, calendarStyle);
 
   const bounds: RowOutlineBounds[] = [];
 
@@ -81,42 +83,42 @@ export const getOutlineBounds = (
     bounds.push({
       minX: startPos.x - 2,
       minY: startPos.y - 2,
-      maxX: endPos.x + CalendarStyle.cellWidth + 2,
-      maxY: endPos.y + CalendarStyle.cellHeight + 2,
+      maxX: endPos.x + calendarStyle.cellWidth + 2,
+      maxY: endPos.y + calendarStyle.cellHeight + 2,
       row: startPos.row,
     });
   } else {
     // Multiple rows
     // First row: from startPos to end of row
-    const lastCellFirstRow = getCellPosition(startPos.row * dimensions.numberOfCols + dimensions.numberOfCols - 1, dimensions);
+    const lastCellFirstRow = getCellPosition(startPos.row * dimensions.numberOfCols + dimensions.numberOfCols - 1, dimensions, calendarStyle);
     bounds.push({
       minX: startPos.x - 2,
       minY: startPos.y - 2,
-      maxX: lastCellFirstRow.x + CalendarStyle.cellWidth + 2,
-      maxY: startPos.y + CalendarStyle.cellHeight + 2,
+      maxX: lastCellFirstRow.x + calendarStyle.cellWidth + 2,
+      maxY: startPos.y + calendarStyle.cellHeight + 2,
       row: startPos.row,
     });
 
     // Intermediate rows: full width
     for (let row = startPos.row + 1; row < endPos.row; row++) {
-      const firstCellOfRow = getCellPosition(row * dimensions.numberOfCols, dimensions);
-      const lastCellOfRow = getCellPosition(row * dimensions.numberOfCols + dimensions.numberOfCols - 1, dimensions);
+      const firstCellOfRow = getCellPosition(row * dimensions.numberOfCols, dimensions, calendarStyle);
+      const lastCellOfRow = getCellPosition(row * dimensions.numberOfCols + dimensions.numberOfCols - 1, dimensions, calendarStyle);
       bounds.push({
         minX: firstCellOfRow.x - 2,
         minY: firstCellOfRow.y - 2,
-        maxX: lastCellOfRow.x + CalendarStyle.cellWidth + 2,
-        maxY: firstCellOfRow.y + CalendarStyle.cellHeight + 2,
+        maxX: lastCellOfRow.x + calendarStyle.cellWidth + 2,
+        maxY: firstCellOfRow.y + calendarStyle.cellHeight + 2,
         row,
       });
     }
 
     // Last row: from start of row to endPos
-    const firstCellLastRow = getCellPosition(endPos.row * dimensions.numberOfCols, dimensions);
+    const firstCellLastRow = getCellPosition(endPos.row * dimensions.numberOfCols, dimensions, calendarStyle);
     bounds.push({
       minX: firstCellLastRow.x - 2,
       minY: endPos.y - 2,
-      maxX: endPos.x + CalendarStyle.cellWidth + 2,
-      maxY: endPos.y + CalendarStyle.cellHeight + 2,
+      maxX: endPos.x + calendarStyle.cellWidth + 2,
+      maxY: endPos.y + calendarStyle.cellHeight + 2,
       row: endPos.row,
     });
   }

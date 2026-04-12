@@ -18,12 +18,14 @@ export const paintCanvas = (
     startDate,
     today,
     highlightCount,
+    calendarStyle,
   }: {
     numberOfCells: number;
     canvasWidth: number;
     startDate: Dayjs;
     today: Dayjs;
     highlightCount?: number;
+    calendarStyle: CalendarStyle;
   },
 ) => {
   const ctx = canvas.getContext('2d')
@@ -33,7 +35,7 @@ export const paintCanvas = (
 
   ctx.reset()
 
-  const { numberOfCols, computedPaddingLeft, numberOfRows, daysOfLastRow } = calculateCalendarDimension(CalendarStyle, { numberOfCells, canvasWidth });
+  const { numberOfCols, computedPaddingLeft, numberOfRows, daysOfLastRow } = calculateCalendarDimension(calendarStyle, { numberOfCells, canvasWidth });
 
   if (isNaN(numberOfCells) || isNaN(numberOfCols) || isNaN(numberOfRows)) {
     return;
@@ -49,27 +51,27 @@ export const paintCanvas = (
   let cellIndex = 0;
   // Main grid
   for (let r = 0; r < numberOfRows; r++) {
-    const y = r === 0 ? CalendarStyle.paddingTop : ((CalendarStyle.cellGap + CalendarStyle.cellHeight) * r) + CalendarStyle.paddingTop
+    const y = r === 0 ? calendarStyle.paddingTop : ((calendarStyle.cellGap + calendarStyle.cellHeight) * r) + calendarStyle.paddingTop
     for (let c = 0; c < numberOfCols; c++) {
-      const x = c === 0 ? computedPaddingLeft : ((CalendarStyle.cellGap + CalendarStyle.cellWidth) * c) + computedPaddingLeft
+      const x = c === 0 ? computedPaddingLeft : ((calendarStyle.cellGap + calendarStyle.cellWidth) * c) + computedPaddingLeft
       const cellDate = startDate.add(cellIndex, 'day');
       const isPassed = !cellDate.isAfter(today, 'day');
       const isActive = highlightCount !== undefined ? cellIndex < highlightCount : isPassed;
       const backgroundColor = isActive ? '#0b3d91' : '#2d3a4a';
-      paintCell(ctx, { x, y, h: CalendarStyle.cellHeight, w: CalendarStyle.cellWidth, backgroundColor })
+      paintCell(ctx, { x, y, h: calendarStyle.cellHeight, w: calendarStyle.cellWidth, backgroundColor })
       cellIndex++;
     }
   }
 
   // Last row (partial)
   for (let c = 0; c < daysOfLastRow; c++) {
-    const x = c === 0 ? computedPaddingLeft : ((CalendarStyle.cellGap + CalendarStyle.cellWidth) * c) + computedPaddingLeft
-    const y = numberOfRows === 0 ? CalendarStyle.paddingTop : ((CalendarStyle.cellGap + CalendarStyle.cellHeight) * numberOfRows) + CalendarStyle.paddingTop
+    const x = c === 0 ? computedPaddingLeft : ((calendarStyle.cellGap + calendarStyle.cellWidth) * c) + computedPaddingLeft
+    const y = numberOfRows === 0 ? calendarStyle.paddingTop : ((calendarStyle.cellGap + calendarStyle.cellHeight) * numberOfRows) + calendarStyle.paddingTop
     const cellDate = startDate.add(cellIndex, 'day');
     const isPassed = !cellDate.isAfter(today, 'day');
     const isActive = highlightCount !== undefined ? cellIndex < highlightCount : isPassed;
     const backgroundColor = isActive ? '#0b3d91' : '#2d3a4a';
-    paintCell(ctx, { x, y, h: CalendarStyle.cellHeight, w: CalendarStyle.cellWidth, backgroundColor })
+    paintCell(ctx, { x, y, h: calendarStyle.cellHeight, w: calendarStyle.cellWidth, backgroundColor })
     cellIndex++;
   }
 }

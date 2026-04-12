@@ -19,22 +19,26 @@ export const ProgressGridTable = ({
   startDate,
   today,
   days,
+  collapseGridGap = false,
 }: {
   days: number;
   startDate: Dayjs;
   today: Dayjs;
+  collapseGridGap?: boolean;
 }) => {
   const { showTooltip, hideTooltip, updateTooltipPosition } = useTooltip();
+  const gap = collapseGridGap ? 0 : 3;
 
   const { numOfCols, numOfRows, getNumOfCols } = calculateTableGridDimensions(
     cellConfig.sizes.default.size,
-    3,
-    window.innerWidth - (cellConfig.sizes.default.size + 6),
+    gap,
+    window.innerWidth - (cellConfig.sizes.default.size + gap),
     days
   );
   return (
     <table
       className="progress-table"
+      style={{ borderSpacing: gap }}
       onMouseEnter={() => {
         // Tooltip is shown on hover over cells
       }}

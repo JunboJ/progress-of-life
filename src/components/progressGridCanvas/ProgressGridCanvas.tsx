@@ -1,5 +1,5 @@
 import { Dayjs } from 'dayjs';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useHtmlClientDimension } from '../../hooks/utils/useHtmlClientWidth';
 import { paintCanvas } from '../../canvas/paint';
 import { useTooltip } from '../../hooks/useTooltip';
@@ -15,6 +15,7 @@ interface ProgressGridCanvasProps {
   endDate: Dayjs;
   today: Dayjs;
   animateHighlight?: boolean;
+  collapseGridGap?: boolean;
   onAnimationFinished?: () => void;
   onDateHover?: (date: Dayjs | null) => void;
 }
@@ -24,6 +25,7 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   days,
   today,
   animateHighlight = false,
+  collapseGridGap = false,
   onAnimationFinished,
   onDateHover,
 }: ProgressGridCanvasProps) => {
@@ -39,7 +41,12 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   const animationFrameRef = useRef<number | null>(null);
   const currentHighlightRef = useRef(0);
 
-  const { canvasWidth, canvasHeight } = calculateCanvasDimensions(CalendarStyle, {
+  const calendarStyle = useMemo(
+    () => ({ ...CalendarStyle, cellGap: collapseGridGap ? 0 : CalendarStyle.cellGap }),
+    [collapseGridGap],
+  );
+
+  const { canvasWidth, canvasHeight } = calculateCanvasDimensions(calendarStyle, {
     numberOfCells: days,
     gridWidth: gridWidth,
   });
@@ -61,6 +68,7 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
       startDate,
       today,
       highlightCount,
+      calendarStyle,
     });
   };
 
@@ -119,19 +127,19 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
 
         if (hoveredDay) {
           // Draw year outline
-          const yearBounds = getOutlineBounds(startDate, hoveredDay, days, gridWidth, 'year');
+          const yearBounds = getOutlineBounds(startDate, hoveredDay, days, gridWidth, 'year', calendarStyle);
           if (yearBounds) {
             drawMultiRowOutline(ctx, yearBounds, '#FF6B6B', 3);
           }
 
           // Draw month outline
-          const monthBounds = getOutlineBounds(startDate, hoveredDay, days, gridWidth, 'month');
+          const monthBounds = getOutlineBounds(startDate, hoveredDay, days, gridWidth, 'month', calendarStyle);
           if (monthBounds) {
             drawMultiRowOutline(ctx, monthBounds, '#4ECDC4', 3);
           }
 
           // Draw week outline
-          const weekBounds = getOutlineBounds(startDate, hoveredDay, days, gridWidth, 'week');
+          const weekBounds = getOutlineBounds(startDate, hoveredDay, days, gridWidth, 'week', calendarStyle);
           if (weekBounds) {
             drawMultiRowOutline(ctx, weekBounds, '#FFE66D', 3);
           }
@@ -159,7 +167,7 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
       return;
     }
 
-    const cell = getCalendarCellFromPoint(CalendarStyle, {
+const cell = getCalendarCellFromPoint(calendarStyle, {
       numberOfCells: days,
       canvasWidth: gridWidth,
       pointX: point.x,

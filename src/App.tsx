@@ -12,15 +12,22 @@ function App() {
   const [lifeSpan, setLifeSpan] = useState<number>(DEFAULT_LIFE_EXPECTANCY);
   const [dob, setDob] = useState("");
   const [useTable, setUseTable] = useState(false);
+  const [collapseGridGap, setCollapseGridGap] = useState(true);
   const [animateHighlight, setAnimateHighlight] = useState(false);
   const [autoOpenSettings, setAutoOpenSettings] = useState(dob === "");
 
   const { startDate, endDate, today, months, days, daysLived } = calculateLifeStats(lifeSpan, dob);
 
-  const handleSaveSettings = (newLifeSpan: number, newDob: string, newUseTable: boolean) => {
+  const handleSaveSettings = (
+    newLifeSpan: number,
+    newDob: string,
+    newUseTable: boolean,
+    newCollapseGridGap: boolean,
+  ) => {
     setLifeSpan(newLifeSpan);
     setDob(newDob);
     setUseTable(newUseTable);
+    setCollapseGridGap(newCollapseGridGap);
     setAnimateHighlight(!!newDob);
     setAutoOpenSettings(false);
   };
@@ -33,7 +40,12 @@ function App() {
     <div className="app-root root night-mode-color">
       <div className="canvas-area">
         {useTable ? (
-          <ProgressGridTable startDate={startDate} today={today} days={days} />
+          <ProgressGridTable
+            startDate={startDate}
+            today={today}
+            days={days}
+            collapseGridGap={collapseGridGap}
+          />
         ) : (
           <ProgressGridCanvas
             startDate={startDate}
@@ -41,6 +53,7 @@ function App() {
             today={today}
             days={days}
             animateHighlight={animateHighlight}
+            collapseGridGap={collapseGridGap}
             onAnimationFinished={handleAnimationFinished}
           />
         )}
@@ -51,6 +64,7 @@ function App() {
         lifeSpan={lifeSpan}
         dob={dob}
         useTable={useTable}
+        collapseGridGap={collapseGridGap}
         today={today}
         months={months}
         daysLived={daysLived}

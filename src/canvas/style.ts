@@ -1,4 +1,14 @@
-export const CalendarStyle = {
+export interface CalendarStyle {
+  cellWidth: number;
+  cellHeight: number;
+  cellGap: number;
+  paddingTop: number;
+  paddingRight: number;
+  paddingBottom: number;
+  paddingLeft: number;
+}
+
+export const CalendarStyle: CalendarStyle = {
   cellWidth: 32,
   cellHeight: 32,
   cellGap: 6,
@@ -6,6 +16,4 @@ export const CalendarStyle = {
   paddingRight: 6,
   paddingBottom: 6,
   paddingLeft: 6,
-} as const
-
-export type CalendarStyle = typeof CalendarStyle
+}
