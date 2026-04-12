@@ -5,6 +5,7 @@ import { paintCanvas } from '../../canvas/paint';
 import { useTooltipStore } from '../../store/tooltipStore';
 import { CalendarStyle } from '../../canvas/style';
 import { getCalendarCellFromPoint, calculateCanvasDimensions } from '../../canvas/utils';
+import { getOutlineBounds, drawMultiRowOutline } from '../../canvas/outlineUtils';
 
 interface ProgressGridCanvasProps {
   days: number;
@@ -21,12 +22,14 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   onDateHover,
 }: ProgressGridCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const dragging = useRef(false);
   const lastPointer = useRef({ x: 0, y: 0 });
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   const [gridWidth, setGridWidth] = useState(4000);
+  const [hoveredDay, setHoveredDay] = useState<Dayjs | null>(null);
   const { htmlClientWidth, htmlClientHeight } = useHtmlClientDimension();
   const updatePositionX = useTooltipStore((state) => state.updatePositionX);
   const updatePositionY = useTooltipStore((state) => state.updatePositionY);
@@ -46,6 +49,38 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
       paintCanvas(canvasRef.current, { numberOfCells: days, canvasWidth: gridWidth, startDate, today });
     }
   }, [days, canvasWidth, canvasHeight, gridWidth, startDate, today]);
+
+  useEffect(() => {
+    if (overlayCanvasRef.current) {
+      overlayCanvasRef.current.width = canvasWidth;
+      overlayCanvasRef.current.height = canvasHeight;
+
+      const ctx = overlayCanvasRef.current.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+        if (hoveredDay) {
+          // Draw year outline
+          const yearBounds = getOutlineBounds(startDate, hoveredDay, days, gridWidth, 'year');
+          if (yearBounds) {
+            drawMultiRowOutline(ctx, yearBounds, '#FF6B6B', 3);
+          }
+
+          // Draw month outline
+          const monthBounds = getOutlineBounds(startDate, hoveredDay, days, gridWidth, 'month');
+          if (monthBounds) {
+            drawMultiRowOutline(ctx, monthBounds, '#4ECDC4', 3);
+          }
+
+          // Draw week outline
+          const weekBounds = getOutlineBounds(startDate, hoveredDay, days, gridWidth, 'week');
+          if (weekBounds) {
+            drawMultiRowOutline(ctx, weekBounds, '#FFE66D', 3);
+          }
+        }
+      }
+    }
+  }, [hoveredDay, canvasWidth, canvasHeight, days, gridWidth, startDate]);
 
   const toCanvasPoint = (clientX: number, clientY: number) => {
     const wrapper = wrapperRef.current;
@@ -79,11 +114,13 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
       updatePositionY(clientY);
       setContent(currentDate.format('YYYY-MM-DD'));
       setHidden(false);
+      setHoveredDay(currentDate);
       onDateHover?.(currentDate);
       return;
     }
 
     setHidden(true);
+    setHoveredDay(null);
     onDateHover?.(null);
   };
 
@@ -117,6 +154,7 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
 
   const handlePointerLeave = () => {
     setHidden(true);
+    setHoveredDay(null);
     onDateHover?.(null);
   };
 
@@ -171,6 +209,20 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
           transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
           transformOrigin: '0 0',
           display: 'block',
+        }}
+      />
+      <canvas
+        ref={overlayCanvasRef}
+        width={canvasWidth}
+        height={canvasHeight}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+          transformOrigin: '0 0',
+          display: 'block',
+          pointerEvents: 'none',
         }}
       />
       <input
