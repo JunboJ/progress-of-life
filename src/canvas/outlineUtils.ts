@@ -126,6 +126,27 @@ export const getOutlineBounds = (
   return bounds;
 };
 
+export const getDayOutlineBounds = (
+  cellIndex: number,
+  numberOfCells: number,
+  gridWidth: number,
+  calendarStyle: CalendarStyle,
+): OutlineBounds | null => {
+  if (cellIndex < 0 || cellIndex >= numberOfCells) {
+    return null;
+  }
+
+  const dimensions = calculateCalendarDimension(calendarStyle, { numberOfCells, canvasWidth: gridWidth });
+  const cellPos = getCellPosition(cellIndex, dimensions, calendarStyle);
+
+  return {
+    minX: cellPos.x - 2,
+    minY: cellPos.y - 2,
+    maxX: cellPos.x + calendarStyle.cellWidth + 2,
+    maxY: cellPos.y + calendarStyle.cellHeight + 2,
+  };
+};
+
 export const drawOutline = (
   ctx: CanvasRenderingContext2D,
   bounds: OutlineBounds,

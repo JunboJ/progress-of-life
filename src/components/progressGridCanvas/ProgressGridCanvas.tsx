@@ -7,7 +7,7 @@ import { useCanvasInteraction } from '../../hooks/useCanvasInteraction';
 import { setupCanvas } from '../../utils/canvasSetup';
 import { CalendarStyle } from '../../canvas/style';
 import { getCalendarCellFromPoint, calculateCanvasDimensions } from '../../canvas/utils';
-import { getOutlineBounds, drawMultiRowOutline } from '../../canvas/outlineUtils';
+import { getOutlineBounds, drawMultiRowOutline, getDayOutlineBounds, drawOutline } from '../../canvas/outlineUtils';
 
 interface ProgressGridCanvasProps {
   days: number;
@@ -32,7 +32,7 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const [gridWidth, setGridWidth] = useState(4000);
+  const [gridWidth, setGridWidth] = useState(8000);
   const [hoveredDay, setHoveredDay] = useState<Dayjs | null>(null);
   const { htmlClientWidth, htmlClientHeight } = useHtmlClientDimension();
   const { showTooltip, hideTooltip } = useTooltip();
@@ -118,35 +118,47 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
     };
   }, [passedDaysCount, animateHighlight, days, canvasWidth, canvasHeight, gridWidth, startDate, today, dpr, onAnimationFinished]);
 
-  useEffect(() => {
+  const drawOutlinesForDate = (date: Dayjs | null) => {
     if (overlayCanvasRef.current) {
       const canvas = overlayCanvasRef.current;
       const ctx = setupCanvas(canvas, canvasWidth, canvasHeight, dpr);
       if (ctx) {
         ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-        if (hoveredDay) {
+        if (date) {
+          // Draw day outline
+          const cellIndex = date.diff(startDate, 'day');
+          const dayBounds = getDayOutlineBounds(cellIndex, days, gridWidth, calendarStyle);
+          if (dayBounds) {
+            drawOutline(ctx, dayBounds, '#FFFFFF', 2);
+          }
+
           // Draw year outline
-          const yearBounds = getOutlineBounds(startDate, hoveredDay, days, gridWidth, 'year', calendarStyle);
+          const yearBounds = getOutlineBounds(startDate, date, days, gridWidth, 'year', calendarStyle);
           if (yearBounds) {
             drawMultiRowOutline(ctx, yearBounds, '#FF6B6B', 3, 'year');
           }
 
           // Draw month outline
-          const monthBounds = getOutlineBounds(startDate, hoveredDay, days, gridWidth, 'month', calendarStyle);
+          const monthBounds = getOutlineBounds(startDate, date, days, gridWidth, 'month', calendarStyle);
           if (monthBounds) {
             drawMultiRowOutline(ctx, monthBounds, '#4ECDC4', 3, 'month');
           }
 
           // Draw week outline
-          const weekBounds = getOutlineBounds(startDate, hoveredDay, days, gridWidth, 'week', calendarStyle);
+          const weekBounds = getOutlineBounds(startDate, date, days, gridWidth, 'week', calendarStyle);
           if (weekBounds) {
             drawMultiRowOutline(ctx, weekBounds, '#FFE66D', 3, 'week');
           }
         }
       }
     }
-  }, [hoveredDay, canvasWidth, canvasHeight, days, gridWidth, startDate, dpr]);
+  };
+
+  // Redraw outlines when canvas dimensions change
+  useEffect(() => {
+    drawOutlinesForDate(hoveredDay);
+  }, [canvasWidth, canvasHeight, dpr]);
 
   const toCanvasPoint = (clientX: number, clientY: number) => {
     const wrapper = wrapperRef.current;
@@ -167,7 +179,7 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
       return;
     }
 
-const cell = getCalendarCellFromPoint(calendarStyle, {
+    const cell = getCalendarCellFromPoint(calendarStyle, {
       numberOfCells: days,
       canvasWidth: gridWidth,
       pointX: point.x,
@@ -178,6 +190,7 @@ const cell = getCalendarCellFromPoint(calendarStyle, {
       const currentDate = startDate.add(cell.cellIndex, 'day');
       showTooltip(clientX, clientY, currentDate.format('YYYY-MM-DD'));
       setHoveredDay(currentDate);
+      drawOutlinesForDate(currentDate);
       onDateHover?.(currentDate);
     }
     // If no cell found (hovering over gap), keep the previous hover state
@@ -203,6 +216,7 @@ const cell = getCalendarCellFromPoint(calendarStyle, {
   const handlePointerLeave = () => {
     hideTooltip();
     setHoveredDay(null);
+    drawOutlinesForDate(null);
     onDateHover?.(null);
   };
 

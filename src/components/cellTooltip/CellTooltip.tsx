@@ -15,8 +15,6 @@ export const CellTooltip = () => {
   const hidden = useTooltipStore((state) => state.hidden);
   const content = useTooltipStore((state) => state.content);
 
-  console.log('CellTooltip render:', { positionX, positionY, hidden, content })
-
   const { x: calculatedPositionX, y: calculatedPositionY } = calculateTooltipPosition(
     positionX,
     positionY,
