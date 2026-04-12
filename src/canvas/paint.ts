@@ -17,11 +17,13 @@ export const paintCanvas = (
     canvasWidth,
     startDate,
     today,
+    highlightCount,
   }: {
     numberOfCells: number;
     canvasWidth: number;
     startDate: Dayjs;
     today: Dayjs;
+    highlightCount?: number;
   },
 ) => {
   const ctx = canvas.getContext('2d')
@@ -52,7 +54,8 @@ export const paintCanvas = (
       const x = c === 0 ? computedPaddingLeft : ((CalendarStyle.cellGap + CalendarStyle.cellWidth) * c) + computedPaddingLeft
       const cellDate = startDate.add(cellIndex, 'day');
       const isPassed = !cellDate.isAfter(today, 'day');
-      const backgroundColor = isPassed ? '#0b3d91' : '#2d3a4a';
+      const isActive = highlightCount !== undefined ? cellIndex < highlightCount : isPassed;
+      const backgroundColor = isActive ? '#0b3d91' : '#2d3a4a';
       paintCell(ctx, { x, y, h: CalendarStyle.cellHeight, w: CalendarStyle.cellWidth, backgroundColor })
       cellIndex++;
     }
@@ -64,7 +67,8 @@ export const paintCanvas = (
     const y = numberOfRows === 0 ? CalendarStyle.paddingTop : ((CalendarStyle.cellGap + CalendarStyle.cellHeight) * numberOfRows) + CalendarStyle.paddingTop
     const cellDate = startDate.add(cellIndex, 'day');
     const isPassed = !cellDate.isAfter(today, 'day');
-    const backgroundColor = isPassed ? '#0b3d91' : '#2d3a4a';
+    const isActive = highlightCount !== undefined ? cellIndex < highlightCount : isPassed;
+    const backgroundColor = isActive ? '#0b3d91' : '#2d3a4a';
     paintCell(ctx, { x, y, h: CalendarStyle.cellHeight, w: CalendarStyle.cellWidth, backgroundColor })
     cellIndex++;
   }

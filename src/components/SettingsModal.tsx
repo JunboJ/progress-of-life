@@ -11,6 +11,8 @@ interface SettingsModalProps {
   months: number;
   daysLived: number;
   onSave: (lifeSpan: number, dob: string, useTable: boolean) => void;
+  autoOpen: boolean;
+  onAutoOpenHandled: () => void;
 }
 
 const SettingsModal = ({
@@ -21,6 +23,8 @@ const SettingsModal = ({
   months,
   daysLived,
   onSave,
+  autoOpen,
+  onAutoOpenHandled,
 }: SettingsModalProps) => {
   const [open, setOpen] = useState(false);
   const [draftLifeSpan, setDraftLifeSpan] = useState<number>(lifeSpan);
@@ -34,6 +38,13 @@ const SettingsModal = ({
       setDraftUseTable(useTable);
     }
   }, [open, lifeSpan, dob, useTable]);
+
+  useEffect(() => {
+    if (autoOpen && !open) {
+      setOpen(true);
+      onAutoOpenHandled();
+    }
+  }, [autoOpen, onAutoOpenHandled, open]);
 
   const close = () => setOpen(false);
 
@@ -68,6 +79,12 @@ const SettingsModal = ({
             max={today.format("YYYY-MM-DD")}
           />
         </div>
+
+        {!dob ? (
+          <div className="settings-warning">
+            Please enter your date of birth to unlock the life progress canvas.
+          </div>
+        ) : null}
 
         <div className="settings-field settings-switch-row">
           <label>

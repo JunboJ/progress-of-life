@@ -14,6 +14,8 @@ interface ProgressGridCanvasProps {
   startDate: Dayjs;
   endDate: Dayjs;
   today: Dayjs;
+  animateHighlight?: boolean;
+  onAnimationFinished?: () => void;
   onDateHover?: (date: Dayjs | null) => void;
 }
 
@@ -21,6 +23,8 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   startDate,
   days,
   today,
+  animateHighlight = false,
+  onAnimationFinished,
   onDateHover,
 }: ProgressGridCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -32,6 +36,9 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   const { showTooltip, hideTooltip } = useTooltip();
   const { offset, scale, handlePointerDown, handlePointerMove, handlePointerUp, handleWheel } = useCanvasInteraction();
 
+  const animationFrameRef = useRef<number | null>(null);
+  const currentHighlightRef = useRef(0);
+
   const { canvasWidth, canvasHeight } = calculateCanvasDimensions(CalendarStyle, {
     numberOfCells: days,
     gridWidth: gridWidth,
@@ -39,14 +46,69 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
 
   const dpr = window.devicePixelRatio || 1;
 
-  useEffect(() => {
-    if (canvasRef.current) {
-      const canvas = canvasRef.current;
-      setupCanvas(canvas, canvasWidth, canvasHeight, dpr);
-      console.log('Canvas updated:', { gridWidth, days, canvasWidth, canvasHeight, dpr });
-      paintCanvas(canvas, { numberOfCells: days, canvasWidth: gridWidth, startDate, today });
+  const passedDaysCount = !startDate.isAfter(today, 'day') ? today.diff(startDate, 'day') + 1 : 0;
+
+  const drawCanvas = (highlightCount: number) => {
+    if (!canvasRef.current) {
+      return;
     }
-  }, [days, canvasWidth, canvasHeight, gridWidth, startDate, today, dpr]);
+
+    const canvas = canvasRef.current;
+    setupCanvas(canvas, canvasWidth, canvasHeight, dpr);
+    paintCanvas(canvas, {
+      numberOfCells: days,
+      canvasWidth: gridWidth,
+      startDate,
+      today,
+      highlightCount,
+    });
+  };
+
+  useEffect(() => {
+    const cancelAnimation = () => {
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    };
+
+    if (!animateHighlight) {
+      currentHighlightRef.current = passedDaysCount;
+      drawCanvas(passedDaysCount);
+      cancelAnimation();
+      return;
+    }
+
+    let startTime: number | null = null;
+    const duration = 5000;
+
+    const animate = (timestamp: number) => {
+      if (!startTime) {
+        startTime = timestamp;
+      }
+
+      const elapsed = timestamp - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      const eased = Math.pow(progress, 1.8);
+      const current = Math.min(passedDaysCount, Math.ceil(eased * passedDaysCount));
+      currentHighlightRef.current = current;
+      drawCanvas(current);
+
+      if (progress < 1) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        animationFrameRef.current = null;
+        onAnimationFinished?.();
+      }
+    };
+
+    cancelAnimation();
+    animationFrameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      cancelAnimation();
+    };
+  }, [passedDaysCount, animateHighlight, days, canvasWidth, canvasHeight, gridWidth, startDate, today, dpr, onAnimationFinished]);
 
   useEffect(() => {
     if (overlayCanvasRef.current) {

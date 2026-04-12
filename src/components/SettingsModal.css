@@ -40,6 +40,16 @@
   font-size: 1rem;
 }
 
+.settings-warning {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff4e5;
+  color: #7a4b00;
+  font-size: 0.95rem;
+  margin-bottom: 16px;
+  border: 1px solid #f1d5a3;
+}
+
 .settings-switch-row {
   flex-direction: row;
   align-items: center;
