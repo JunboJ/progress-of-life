@@ -41,22 +41,37 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
     gridWidth: gridWidth,
   });
 
+  const dpr = window.devicePixelRatio || 1;
+
   useEffect(() => {
     if (canvasRef.current) {
-      canvasRef.current.width = canvasWidth;
-      canvasRef.current.height = canvasHeight;
-      console.log('Canvas updated:', { gridWidth, days, canvasWidth, canvasHeight, dpr: window.devicePixelRatio });
-      paintCanvas(canvasRef.current, { numberOfCells: days, canvasWidth: gridWidth, startDate, today });
+      const canvas = canvasRef.current;
+      canvas.width = canvasWidth * dpr;
+      canvas.height = canvasHeight * dpr;
+      canvas.style.width = `${canvasWidth}px`;
+      canvas.style.height = `${canvasHeight}px`;
+
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.scale(dpr, dpr);
+      }
+
+      console.log('Canvas updated:', { gridWidth, days, canvasWidth, canvasHeight, dpr });
+      paintCanvas(canvas, { numberOfCells: days, canvasWidth: gridWidth, startDate, today });
     }
-  }, [days, canvasWidth, canvasHeight, gridWidth, startDate, today]);
+  }, [days, canvasWidth, canvasHeight, gridWidth, startDate, today, dpr]);
 
   useEffect(() => {
     if (overlayCanvasRef.current) {
-      overlayCanvasRef.current.width = canvasWidth;
-      overlayCanvasRef.current.height = canvasHeight;
+      const canvas = overlayCanvasRef.current;
+      canvas.width = canvasWidth * dpr;
+      canvas.height = canvasHeight * dpr;
+      canvas.style.width = `${canvasWidth}px`;
+      canvas.style.height = `${canvasHeight}px`;
 
-      const ctx = overlayCanvasRef.current.getContext('2d');
+      const ctx = canvas.getContext('2d');
       if (ctx) {
+        ctx.scale(dpr, dpr);
         ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
         if (hoveredDay) {
@@ -80,7 +95,7 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
         }
       }
     }
-  }, [hoveredDay, canvasWidth, canvasHeight, days, gridWidth, startDate]);
+  }, [hoveredDay, canvasWidth, canvasHeight, days, gridWidth, startDate, dpr]);
 
   const toCanvasPoint = (clientX: number, clientY: number) => {
     const wrapper = wrapperRef.current;
@@ -205,6 +220,9 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
           transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
           transformOrigin: '0 0',
           display: 'block',
+          imageRendering: 'crisp-edges',
+          imageRendering: '-webkit-crisp-edges',
+          imageRendering: 'pixelated',
         }}
       />
       <canvas
@@ -218,6 +236,9 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
           transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
           transformOrigin: '0 0',
           display: 'block',
+          imageRendering: 'crisp-edges',
+          imageRendering: '-webkit-crisp-edges',
+          imageRendering: 'pixelated',
           pointerEvents: 'none',
         }}
       />
