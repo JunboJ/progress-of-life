@@ -14,8 +14,6 @@ interface ProgressGridCanvasProps {
   onDateHover?: (date: Dayjs | null) => void;
 }
 
-const GRID_WIDTH = 4000;
-
 const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   startDate,
   days,
@@ -28,6 +26,7 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   const lastPointer = useRef({ x: 0, y: 0 });
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
+  const [gridWidth, setGridWidth] = useState(4000);
   const { htmlClientWidth, htmlClientHeight } = useHtmlClientDimension();
   const updatePositionX = useTooltipStore((state) => state.updatePositionX);
   const updatePositionY = useTooltipStore((state) => state.updatePositionY);
@@ -36,17 +35,17 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
 
   const { canvasWidth, canvasHeight } = calculateCanvasDimensions(CalendarStyle, {
     numberOfCells: days,
-    gridWidth: GRID_WIDTH,
+    gridWidth: gridWidth,
   });
 
   useEffect(() => {
     if (canvasRef.current) {
       canvasRef.current.width = canvasWidth;
       canvasRef.current.height = canvasHeight;
-      console.log('Canvas updated:', { GRID_WIDTH, days, canvasWidth, canvasHeight, dpr: window.devicePixelRatio });
-      paintCanvas(canvasRef.current, { numberOfCells: days, canvasWidth: GRID_WIDTH, startDate, today });
+      console.log('Canvas updated:', { gridWidth, days, canvasWidth, canvasHeight, dpr: window.devicePixelRatio });
+      paintCanvas(canvasRef.current, { numberOfCells: days, canvasWidth: gridWidth, startDate, today });
     }
-  }, [days, canvasWidth, canvasHeight, startDate, today]);
+  }, [days, canvasWidth, canvasHeight, gridWidth, startDate, today]);
 
   const toCanvasPoint = (clientX: number, clientY: number) => {
     const wrapper = wrapperRef.current;
@@ -69,7 +68,7 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
 
     const cell = getCalendarCellFromPoint(CalendarStyle, {
       numberOfCells: days,
-      canvasWidth: GRID_WIDTH,
+      canvasWidth: gridWidth,
       pointX: point.x,
       pointY: point.y,
     });
@@ -128,7 +127,7 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
 
     event.preventDefault();
     const previousScale = scale;
-    const nextScale = Math.min(3, Math.max(0.5, scale * (event.deltaY > 0 ? 0.9 : 1.1)));
+    const nextScale = Math.min(3, Math.max(0.1, scale * (event.deltaY > 0 ? 0.9 : 1.1)));
     if (nextScale === previousScale) {
       return;
     }
@@ -155,6 +154,7 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
         overflow: 'hidden',
         touchAction: 'none',
         backgroundColor: '#23272e',
+        position: 'relative',
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -172,6 +172,22 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
           transformOrigin: '0 0',
           display: 'block',
         }}
+      />
+      <input
+        type="range"
+        min="1000"
+        max="10000"
+        step="100"
+        value={gridWidth}
+        onChange={(e) => setGridWidth(Number(e.target.value))}
+        style={{
+          position: 'absolute',
+          bottom: 16,
+          right: 16,
+          width: 200,
+          cursor: 'pointer',
+        }}
+        title={`Grid width: ${gridWidth}`}
       />
     </div>
   );
