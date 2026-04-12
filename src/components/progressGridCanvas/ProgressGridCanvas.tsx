@@ -19,6 +19,7 @@ const GRID_WIDTH = 4000;
 const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   startDate,
   days,
+  today,
   onDateHover,
 }: ProgressGridCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -43,9 +44,9 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
       canvasRef.current.width = canvasWidth;
       canvasRef.current.height = canvasHeight;
       console.log('Canvas updated:', { GRID_WIDTH, days, canvasWidth, canvasHeight, dpr: window.devicePixelRatio });
-      paintCanvas(canvasRef.current, { numberOfCells: days, canvasWidth: GRID_WIDTH });
+      paintCanvas(canvasRef.current, { numberOfCells: days, canvasWidth: GRID_WIDTH, startDate, today });
     }
-  }, [days, canvasWidth, canvasHeight]);
+  }, [days, canvasWidth, canvasHeight, startDate, today]);
 
   const toCanvasPoint = (clientX: number, clientY: number) => {
     const wrapper = wrapperRef.current;

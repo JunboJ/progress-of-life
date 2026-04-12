@@ -1,3 +1,4 @@
+import { Dayjs } from 'dayjs';
 import { FillRectOptions } from "./canvas.type"
 import { CalendarStyle } from "./style"
 import { calculateCalendarDimension } from "./utils"
@@ -9,10 +10,20 @@ export const paintCell = (ctx: CanvasRenderingContext2D, options: FillRectOption
   ctx.restore()
 }
 
-export const paintCanvas = (canvas: HTMLCanvasElement, { numberOfCells, canvasWidth }: {
-  numberOfCells: number;
-  canvasWidth: number;
-}) => {
+export const paintCanvas = (
+  canvas: HTMLCanvasElement,
+  {
+    numberOfCells,
+    canvasWidth,
+    startDate,
+    today,
+  }: {
+    numberOfCells: number;
+    canvasWidth: number;
+    startDate: Dayjs;
+    today: Dayjs;
+  },
+) => {
   const ctx = canvas.getContext('2d')
   if (!ctx) {
     return;
@@ -33,20 +44,29 @@ export const paintCanvas = (canvas: HTMLCanvasElement, { numberOfCells, canvasWi
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   ctx.save();
-  // TODO: transform to support scrolling
-  //
+  let cellIndex = 0;
+  // Main grid
   for (let r = 0; r < numberOfRows; r++) {
     const y = r === 0 ? CalendarStyle.paddingTop : ((CalendarStyle.cellGap + CalendarStyle.cellHeight) * r) + CalendarStyle.paddingTop
     for (let c = 0; c < numberOfCols; c++) {
       const x = c === 0 ? computedPaddingLeft : ((CalendarStyle.cellGap + CalendarStyle.cellWidth) * c) + computedPaddingLeft
-      paintCell(ctx, { x, y, h: CalendarStyle.cellHeight, w: CalendarStyle.cellWidth })
+      const cellDate = startDate.add(cellIndex, 'day');
+      const isPassed = !cellDate.isAfter(today, 'day');
+      const backgroundColor = isPassed ? '#0b3d91' : '#2d3a4a';
+      paintCell(ctx, { x, y, h: CalendarStyle.cellHeight, w: CalendarStyle.cellWidth, backgroundColor })
+      cellIndex++;
     }
   }
 
+  // Last row (partial)
   for (let c = 0; c < daysOfLastRow; c++) {
     const x = c === 0 ? computedPaddingLeft : ((CalendarStyle.cellGap + CalendarStyle.cellWidth) * c) + computedPaddingLeft
     const y = numberOfRows === 0 ? CalendarStyle.paddingTop : ((CalendarStyle.cellGap + CalendarStyle.cellHeight) * numberOfRows) + CalendarStyle.paddingTop
-    paintCell(ctx, { x, y, h: CalendarStyle.cellHeight, w: CalendarStyle.cellWidth })
+    const cellDate = startDate.add(cellIndex, 'day');
+    const isPassed = !cellDate.isAfter(today, 'day');
+    const backgroundColor = isPassed ? '#0b3d91' : '#2d3a4a';
+    paintCell(ctx, { x, y, h: CalendarStyle.cellHeight, w: CalendarStyle.cellWidth, backgroundColor })
+    cellIndex++;
   }
 }
 
