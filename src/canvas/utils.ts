@@ -63,24 +63,16 @@ export const getCalendarCellFromPoint = (
   const cellWidth = calendarStyle.cellWidth
   const cellHeight = calendarStyle.cellHeight
   const cellGap = calendarStyle.cellGap
+  const halfGap = cellGap / 2
   const offsetX = pointX - computedPaddingLeft
   const offsetY = pointY - calendarStyle.paddingTop
 
-  if (offsetX < 0 || offsetY < 0) {
+  if (offsetX < -halfGap || offsetY < -halfGap) {
     return null
   }
 
-  const row = Math.floor(offsetY / (cellHeight + cellGap))
-  const rowY = row * (cellHeight + cellGap)
-  if (offsetY > rowY + cellHeight) {
-    return null
-  }
-
-  const col = Math.floor(offsetX / (cellWidth + cellGap))
-  const colX = col * (cellWidth + cellGap)
-  if (offsetX > colX + cellWidth) {
-    return null
-  }
+  const row = Math.floor((offsetY + halfGap) / (cellHeight + cellGap))
+  const col = Math.floor((offsetX + halfGap) / (cellWidth + cellGap))
 
   const totalRows = numberOfRows + (daysOfLastRow > 0 ? 1 : 0)
   if (row >= totalRows) {

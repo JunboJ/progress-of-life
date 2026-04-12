@@ -49,6 +49,7 @@ export const useCanvasInteraction = (initialScale = 1) => {
   return {
     offset,
     scale,
+    setOffset,
     handlePointerDown,
     handlePointerMove,
     handlePointerUp,

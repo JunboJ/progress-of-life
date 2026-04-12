@@ -3,7 +3,10 @@ import { useEffect, useRef, useState } from "react"
 const dpr = window.devicePixelRatio || 1;
 
 export const useHtmlClientDimension = () => {
-  const [htmlClientDimension, setHtmlClientDimension] = useState({ htmlClientWidth: 0, htmlClientHeight: 0 });
+  const [htmlClientDimension, setHtmlClientDimension] = useState({
+    htmlClientWidth: document.documentElement.clientWidth * dpr,
+    htmlClientHeight: document.documentElement.clientHeight * dpr,
+  });
 
   const observer = useRef(new ResizeObserver((entries) => {
     for (let entry of entries) {

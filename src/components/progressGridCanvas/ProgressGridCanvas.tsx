@@ -7,7 +7,7 @@ import { useCanvasInteraction } from '../../hooks/useCanvasInteraction';
 import { setupCanvas } from '../../utils/canvasSetup';
 import { CalendarStyle } from '../../canvas/style';
 import { getCalendarCellFromPoint, calculateCanvasDimensions } from '../../canvas/utils';
-import { getOutlineBounds, drawMultiRowOutline, getDayOutlineBounds, drawOutline } from '../../canvas/outlineUtils';
+import { getDayOutlineBounds, drawOutline, getOutlineBounds, drawMultiRowOutline } from '../../canvas/outlineUtils';
 
 interface ProgressGridCanvasProps {
   days: number;
@@ -36,11 +36,11 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   const [hoveredDay, setHoveredDay] = useState<Dayjs | null>(null);
   const { htmlClientWidth, htmlClientHeight } = useHtmlClientDimension();
   const { showTooltip, hideTooltip } = useTooltip();
-  const { offset, scale, handlePointerDown, handlePointerMove, handlePointerUp, handleWheel } = useCanvasInteraction();
+  const { offset, scale, setOffset, handlePointerDown, handlePointerMove, handlePointerUp, handleWheel } = useCanvasInteraction(0.3);
 
   const animationFrameRef = useRef<number | null>(null);
   const currentHighlightRef = useRef(0);
-
+  const lastSetupDimsRef = useRef({ width: -1, height: -1, dpr: -1 });
   const calendarStyle = useMemo(
     () => ({ ...CalendarStyle, cellGap: collapseGridGap ? 0 : CalendarStyle.cellGap }),
     [collapseGridGap],
@@ -61,7 +61,13 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
     }
 
     const canvas = canvasRef.current;
-    setupCanvas(canvas, canvasWidth, canvasHeight, dpr);
+    const last = lastSetupDimsRef.current;
+
+    if (last.width !== canvasWidth || last.height !== canvasHeight || last.dpr !== dpr) {
+      setupCanvas(canvas, canvasWidth, canvasHeight, dpr);
+      lastSetupDimsRef.current = { width: canvasWidth, height: canvasHeight, dpr };
+    }
+
     paintCanvas(canvas, {
       numberOfCells: days,
       canvasWidth: gridWidth,
@@ -154,6 +160,15 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
       }
     }
   };
+
+  // Center the canvas on first valid viewport dimensions
+  // Center the canvas on first render
+  useEffect(() => {
+    setOffset({
+      x: (htmlClientWidth - canvasWidth * 0.3) / 2,
+      y: (htmlClientHeight - canvasHeight * 0.3) / 2,
+    });
+  }, []);
 
   // Redraw outlines when canvas dimensions change
   useEffect(() => {

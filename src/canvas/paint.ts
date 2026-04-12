@@ -44,32 +44,34 @@ export const paintCanvas = (
   ctx.fillStyle = '#23272e';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.save();
-  let cellIndex = 0;
-  // Main grid
-  for (let r = 0; r < numberOfRows; r++) {
-    const y = r === 0 ? calendarStyle.paddingTop : ((calendarStyle.cellGap + calendarStyle.cellHeight) * r) + calendarStyle.paddingTop
-    for (let c = 0; c < numberOfCols; c++) {
-      const x = c === 0 ? computedPaddingLeft : ((calendarStyle.cellGap + calendarStyle.cellWidth) * c) + computedPaddingLeft
-      const cellDate = startDate.add(cellIndex, 'day');
-      const isPassed = !cellDate.isAfter(today, 'day');
-      const isActive = highlightCount !== undefined ? cellIndex < highlightCount : isPassed;
-      const backgroundColor = isActive ? '#0b3d91' : '#2d3a4a';
-      paintCell(ctx, { x, y, h: calendarStyle.cellHeight, w: calendarStyle.cellWidth, backgroundColor })
-      cellIndex++;
-    }
-  }
+  const activeThreshold = highlightCount !== undefined
+    ? highlightCount
+    : today.diff(startDate, 'day') + 1;
 
-  // Last row (partial)
-  for (let c = 0; c < daysOfLastRow; c++) {
-    const x = c === 0 ? computedPaddingLeft : ((calendarStyle.cellGap + calendarStyle.cellWidth) * c) + computedPaddingLeft
-    const y = numberOfRows === 0 ? calendarStyle.paddingTop : ((calendarStyle.cellGap + calendarStyle.cellHeight) * numberOfRows) + calendarStyle.paddingTop
-    const cellDate = startDate.add(cellIndex, 'day');
-    const isPassed = !cellDate.isAfter(today, 'day');
-    const isActive = highlightCount !== undefined ? cellIndex < highlightCount : isPassed;
-    const backgroundColor = isActive ? '#0b3d91' : '#2d3a4a';
-    paintCell(ctx, { x, y, h: calendarStyle.cellHeight, w: calendarStyle.cellWidth, backgroundColor })
-    cellIndex++;
+  const { cellWidth, cellHeight, cellGap, paddingTop } = calendarStyle;
+  const colStride = cellWidth + cellGap;
+  const rowStride = cellHeight + cellGap;
+  const totalCells = numberOfRows * numberOfCols + daysOfLastRow;
+
+  // Batch inactive cells into a single fill
+  ctx.fillStyle = '#2d3a4a';
+  ctx.beginPath();
+  for (let i = activeThreshold; i < totalCells; i++) {
+    const r = Math.floor(i / numberOfCols);
+    const c = i % numberOfCols;
+    ctx.rect(computedPaddingLeft + c * colStride, paddingTop + r * rowStride, cellWidth, cellHeight);
   }
+  ctx.fill();
+
+  // Batch active cells into a single fill
+  const activeCount = Math.min(activeThreshold, totalCells);
+  ctx.fillStyle = '#0b3d91';
+  ctx.beginPath();
+  for (let i = 0; i < activeCount; i++) {
+    const r = Math.floor(i / numberOfCols);
+    const c = i % numberOfCols;
+    ctx.rect(computedPaddingLeft + c * colStride, paddingTop + r * rowStride, cellWidth, cellHeight);
+  }
+  ctx.fill();
 }
 
