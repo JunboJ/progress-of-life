@@ -1,16 +1,13 @@
 import { useTooltipStore } from '../store/tooltipStore';
 
 export const useTooltip = () => {
-  const updatePositionX = useTooltipStore((state) => state.updatePositionX);
-  const updatePositionY = useTooltipStore((state) => state.updatePositionY);
+  const showTooltipState = useTooltipStore((state) => state.showTooltip);
+  const updatePosition = useTooltipStore((state) => state.updatePosition);
   const setHidden = useTooltipStore((state) => state.setHidden);
   const setContent = useTooltipStore((state) => state.setContent);
 
   const showTooltip = (x: number, y: number, content: string) => {
-    updatePositionX(x);
-    updatePositionY(y);
-    setContent(content);
-    setHidden(false);
+    showTooltipState(x, y, content);
   };
 
   const hideTooltip = () => {
@@ -18,8 +15,7 @@ export const useTooltip = () => {
   };
 
   const updateTooltipPosition = (x: number, y: number) => {
-    updatePositionX(x);
-    updatePositionY(y);
+    updatePosition(x, y);
   };
 
   return {

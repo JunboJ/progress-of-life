@@ -5,6 +5,8 @@ interface TooltipState {
   positionY: number;
   hidden: boolean;
   content: string;
+  showTooltip: (x: number, y: number, content: string) => void;
+  updatePosition: (x: number, y: number) => void;
   updatePositionX: (x: number) => void;
   updatePositionY: (y: number) => void;
   setHidden: (isHidden: boolean) => void;
@@ -16,6 +18,8 @@ export const useTooltipStore = create<TooltipState>()((set) => ({
   positionY: 0,
   hidden: true,
   content: "",
+  showTooltip: (x, y, content) => set(() => ({ positionX: x, positionY: y, content, hidden: false })),
+  updatePosition: (x, y) => set(() => ({ positionX: x, positionY: y })),
   updatePositionX: (x) => set(() => ({ positionX: x })),
   updatePositionY: (y) => set(() => ({ positionY: y })),
   setHidden: (isHidden) => set(() => ({ hidden: isHidden })),

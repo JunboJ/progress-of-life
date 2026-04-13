@@ -30,17 +30,24 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   onDateHover,
 }: ProgressGridCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const unitOverlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const dayOverlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [gridWidth, setGridWidth] = useState(8000);
   const [hoveredDay, setHoveredDay] = useState<Dayjs | null>(null);
   const { htmlClientWidth, htmlClientHeight } = useHtmlClientDimension();
-  const { showTooltip, hideTooltip } = useTooltip();
+  const { showTooltip, hideTooltip, updateTooltipPosition } = useTooltip();
   const { offset, scale, setOffset, handlePointerDown, handlePointerMove, handlePointerUp, handleWheel } = useCanvasInteraction(0.3);
 
   const animationFrameRef = useRef<number | null>(null);
   const currentHighlightRef = useRef(0);
   const lastSetupDimsRef = useRef({ width: -1, height: -1, dpr: -1 });
+  const lastUnitOverlaySetupDimsRef = useRef({ width: -1, height: -1, dpr: -1 });
+  const lastDayOverlaySetupDimsRef = useRef({ width: -1, height: -1, dpr: -1 });
+  const previousUnitDateRef = useRef<Dayjs | null>(null);
+  const hoveredCellIndexRef = useRef<number | null>(null);
+  const hoverRafRef = useRef<number | null>(null);
+  const pendingPointerRef = useRef<{ x: number; y: number } | null>(null);
   const calendarStyle = useMemo(
     () => ({ ...CalendarStyle, cellGap: collapseGridGap ? 0 : CalendarStyle.cellGap }),
     [collapseGridGap],
@@ -124,41 +131,93 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
     };
   }, [passedDaysCount, animateHighlight, days, canvasWidth, canvasHeight, gridWidth, startDate, today, dpr, onAnimationFinished]);
 
-  const drawOutlinesForDate = (date: Dayjs | null) => {
-    if (overlayCanvasRef.current) {
-      const canvas = overlayCanvasRef.current;
-      const ctx = setupCanvas(canvas, canvasWidth, canvasHeight, dpr);
-      if (ctx) {
-        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-
-        if (date) {
-          // Draw day outline
-          const cellIndex = date.diff(startDate, 'day');
-          const dayBounds = getDayOutlineBounds(cellIndex, days, gridWidth, calendarStyle);
-          if (dayBounds) {
-            drawOutline(ctx, dayBounds, '#FFFFFF', 2);
-          }
-
-          // Draw year outline
-          const yearBounds = getOutlineBounds(startDate, date, days, gridWidth, 'year', calendarStyle);
-          if (yearBounds) {
-            drawMultiRowOutline(ctx, yearBounds, '#FF6B6B', 3, 'year');
-          }
-
-          // Draw month outline
-          const monthBounds = getOutlineBounds(startDate, date, days, gridWidth, 'month', calendarStyle);
-          if (monthBounds) {
-            drawMultiRowOutline(ctx, monthBounds, '#4ECDC4', 3, 'month');
-          }
-
-          // Draw week outline
-          const weekBounds = getOutlineBounds(startDate, date, days, gridWidth, 'week', calendarStyle);
-          if (weekBounds) {
-            drawMultiRowOutline(ctx, weekBounds, '#FFE66D', 3, 'week');
-          }
-        }
-      }
+  const ensureCanvasSetup = (
+    canvas: HTMLCanvasElement,
+    dimsRef: React.MutableRefObject<{ width: number; height: number; dpr: number }>,
+  ) => {
+    const last = dimsRef.current;
+    if (last.width !== canvasWidth || last.height !== canvasHeight || last.dpr !== dpr) {
+      setupCanvas(canvas, canvasWidth, canvasHeight, dpr);
+      dimsRef.current = { width: canvasWidth, height: canvasHeight, dpr };
     }
+  };
+
+  const drawDayOutline = (date: Dayjs | null) => {
+    const canvas = dayOverlayCanvasRef.current;
+    if (!canvas) {
+      return;
+    }
+
+    ensureCanvasSetup(canvas, lastDayOverlaySetupDimsRef);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return;
+    }
+
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    if (!date) {
+      return;
+    }
+
+    const cellIndex = date.diff(startDate, 'day');
+    const dayBounds = getDayOutlineBounds(cellIndex, days, gridWidth, calendarStyle);
+    if (dayBounds) {
+      drawOutline(ctx, dayBounds, '#FFFFFF', 2);
+    }
+  };
+
+  const drawUnitOutlines = (date: Dayjs | null, force: boolean = false) => {
+    const canvas = unitOverlayCanvasRef.current;
+    if (!canvas) {
+      return;
+    }
+
+    const previousDate = previousUnitDateRef.current;
+    const shouldRedraw =
+      force ||
+      !date ||
+      !previousDate ||
+      !previousDate.isSame(date, 'week') ||
+      !previousDate.isSame(date, 'month') ||
+      !previousDate.isSame(date, 'year');
+
+    if (!shouldRedraw) {
+      return;
+    }
+
+    ensureCanvasSetup(canvas, lastUnitOverlaySetupDimsRef);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return;
+    }
+
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    if (!date) {
+      previousUnitDateRef.current = null;
+      return;
+    }
+
+    const yearBounds = getOutlineBounds(startDate, date, days, gridWidth, 'year', calendarStyle);
+    if (yearBounds) {
+      drawMultiRowOutline(ctx, yearBounds, '#FF6B6B', 3, 'year');
+    }
+
+    const monthBounds = getOutlineBounds(startDate, date, days, gridWidth, 'month', calendarStyle);
+    if (monthBounds) {
+      drawMultiRowOutline(ctx, monthBounds, '#4ECDC4', 3, 'month');
+    }
+
+    const weekBounds = getOutlineBounds(startDate, date, days, gridWidth, 'week', calendarStyle);
+    if (weekBounds) {
+      drawMultiRowOutline(ctx, weekBounds, '#FFE66D', 3, 'week');
+    }
+
+    previousUnitDateRef.current = date;
+  };
+
+  const drawOutlinesForDate = (date: Dayjs | null, forceUnitRedraw: boolean = false) => {
+    drawDayOutline(date);
+    drawUnitOutlines(date, forceUnitRedraw);
   };
 
   // Center the canvas on first valid viewport dimensions
@@ -172,8 +231,17 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
 
   // Redraw outlines when canvas dimensions change
   useEffect(() => {
-    drawOutlinesForDate(hoveredDay);
+    drawOutlinesForDate(hoveredDay, true);
   }, [canvasWidth, canvasHeight, dpr]);
+
+  useEffect(() => {
+    return () => {
+      if (hoverRafRef.current !== null) {
+        cancelAnimationFrame(hoverRafRef.current);
+        hoverRafRef.current = null;
+      }
+    };
+  }, []);
 
   const toCanvasPoint = (clientX: number, clientY: number) => {
     const wrapper = wrapperRef.current;
@@ -202,6 +270,12 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
     });
 
     if (cell) {
+      if (hoveredCellIndexRef.current === cell.cellIndex) {
+        updateTooltipPosition(clientX, clientY);
+        return;
+      }
+
+      hoveredCellIndexRef.current = cell.cellIndex;
       const currentDate = startDate.add(cell.cellIndex, 'day');
       showTooltip(clientX, clientY, currentDate.format('YYYY-MM-DD'));
       setHoveredDay(currentDate);
@@ -216,7 +290,19 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   };
 
   const handlePointerMoveWrapper = (event: React.PointerEvent<HTMLDivElement>) => {
-    updateHover(event.clientX, event.clientY);
+    pendingPointerRef.current = { x: event.clientX, y: event.clientY };
+    if (hoverRafRef.current === null) {
+      hoverRafRef.current = requestAnimationFrame(() => {
+        hoverRafRef.current = null;
+        if (!pendingPointerRef.current) {
+          return;
+        }
+
+        const { x, y } = pendingPointerRef.current;
+        pendingPointerRef.current = null;
+        updateHover(x, y);
+      });
+    }
     handlePointerMove(event);
   };
 
@@ -229,9 +315,15 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   };
 
   const handlePointerLeave = () => {
+    if (hoverRafRef.current !== null) {
+       (hoverRafRef.current);
+      hoverRafRef.current = null;
+    }
+    pendingPointerRef.current = null;
     hideTooltip();
+    hoveredCellIndexRef.current = null;
     setHoveredDay(null);
-    drawOutlinesForDate(null);
+    drawOutlinesForDate(null, true);
     onDateHover?.(null);
   };
 
@@ -265,7 +357,22 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
         }}
       />
       <canvas
-        ref={overlayCanvasRef}
+        ref={unitOverlayCanvasRef}
+        width={canvasWidth}
+        height={canvasHeight}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+          transformOrigin: '0 0',
+          display: 'block',
+          imageRendering: 'pixelated',
+          pointerEvents: 'none',
+        }}
+      />
+      <canvas
+        ref={dayOverlayCanvasRef}
         width={canvasWidth}
         height={canvasHeight}
         style={{

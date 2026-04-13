@@ -1,7 +1,7 @@
 import { Dayjs } from 'dayjs';
 import { FillRectOptions } from "./canvas.type"
 import { CalendarStyle } from "./style"
-import { calculateCalendarDimension } from "./utils"
+import { createGridLayout, getStaticTiles, GridLayout, TILE_SIZE } from './tileCache';
 
 export const paintCell = (ctx: CanvasRenderingContext2D, options: FillRectOptions) => {
   ctx.save()
@@ -9,6 +9,38 @@ export const paintCell = (ctx: CanvasRenderingContext2D, options: FillRectOption
   ctx.fillRect(options.x, options.y, options.w, options.h)
   ctx.restore()
 }
+
+const BACKGROUND_COLOR = '#23272e';
+const INACTIVE_CELL_COLOR = '#2d3a4a';
+const ACTIVE_CELL_COLOR = '#0b3d91';
+
+const drawStaticTiles = (ctx: CanvasRenderingContext2D, layout: GridLayout) => {
+  const tiles = getStaticTiles(layout, BACKGROUND_COLOR, INACTIVE_CELL_COLOR);
+
+  for (const tile of tiles) {
+    ctx.drawImage(tile.canvas, tile.tileX * TILE_SIZE, tile.tileY * TILE_SIZE, tile.width, tile.height);
+  }
+};
+
+const drawActiveCells = (ctx: CanvasRenderingContext2D, layout: GridLayout, activeThreshold: number) => {
+  const activeCount = Math.max(0, Math.min(activeThreshold, layout.totalCells));
+  if (activeCount === 0) {
+    return;
+  }
+
+  ctx.fillStyle = ACTIVE_CELL_COLOR;
+  ctx.beginPath();
+
+  for (let i = 0; i < activeCount; i++) {
+    const row = Math.floor(i / layout.numberOfCols);
+    const col = i % layout.numberOfCols;
+    const x = layout.computedPaddingLeft + col * layout.colStride;
+    const y = layout.paddingTop + row * layout.rowStride;
+    ctx.rect(x, y, layout.cellWidth, layout.cellHeight);
+  }
+
+  ctx.fill();
+};
 
 export const paintCanvas = (
   canvas: HTMLCanvasElement,
@@ -35,43 +67,16 @@ export const paintCanvas = (
 
   ctx.reset()
 
-  const { numberOfCols, computedPaddingLeft, numberOfRows, daysOfLastRow } = calculateCalendarDimension(calendarStyle, { numberOfCells, canvasWidth });
-
-  if (isNaN(numberOfCells) || isNaN(numberOfCols) || isNaN(numberOfRows)) {
+  const layout = createGridLayout(numberOfCells, canvasWidth, calendarStyle);
+  if (!layout) {
     return;
   }
-
-  ctx.fillStyle = '#23272e';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const activeThreshold = highlightCount !== undefined
     ? highlightCount
     : today.diff(startDate, 'day') + 1;
 
-  const { cellWidth, cellHeight, cellGap, paddingTop } = calendarStyle;
-  const colStride = cellWidth + cellGap;
-  const rowStride = cellHeight + cellGap;
-  const totalCells = numberOfRows * numberOfCols + daysOfLastRow;
-
-  // Batch inactive cells into a single fill
-  ctx.fillStyle = '#2d3a4a';
-  ctx.beginPath();
-  for (let i = activeThreshold; i < totalCells; i++) {
-    const r = Math.floor(i / numberOfCols);
-    const c = i % numberOfCols;
-    ctx.rect(computedPaddingLeft + c * colStride, paddingTop + r * rowStride, cellWidth, cellHeight);
-  }
-  ctx.fill();
-
-  // Batch active cells into a single fill
-  const activeCount = Math.min(activeThreshold, totalCells);
-  ctx.fillStyle = '#0b3d91';
-  ctx.beginPath();
-  for (let i = 0; i < activeCount; i++) {
-    const r = Math.floor(i / numberOfCols);
-    const c = i % numberOfCols;
-    ctx.rect(computedPaddingLeft + c * colStride, paddingTop + r * rowStride, cellWidth, cellHeight);
-  }
-  ctx.fill();
+  drawStaticTiles(ctx, layout);
+  drawActiveCells(ctx, layout, activeThreshold);
 }
 
