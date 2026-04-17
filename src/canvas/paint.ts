@@ -1,4 +1,3 @@
-import { Dayjs } from 'dayjs';
 import { FillRectOptions } from "./canvas.type"
 import { CalendarStyle } from "./style"
 import { createGridLayout, getStaticTiles, GridLayout, TILE_SIZE } from './tileCache';
@@ -22,16 +21,17 @@ const drawStaticTiles = (ctx: CanvasRenderingContext2D, layout: GridLayout) => {
   }
 };
 
-const drawActiveCells = (ctx: CanvasRenderingContext2D, layout: GridLayout, activeThreshold: number) => {
-  const activeCount = Math.max(0, Math.min(activeThreshold, layout.totalCells));
-  if (activeCount === 0) {
+const drawActiveCells = (ctx: CanvasRenderingContext2D, layout: GridLayout, fromIndex: number, toIndex: number) => {
+  const start = Math.max(0, Math.min(fromIndex, layout.totalCells));
+  const end = Math.max(0, Math.min(toIndex, layout.totalCells));
+  if (end <= start) {
     return;
   }
 
   ctx.fillStyle = ACTIVE_CELL_COLOR;
   ctx.beginPath();
 
-  for (let i = 0; i < activeCount; i++) {
+  for (let i = start; i < end; i++) {
     const row = Math.floor(i / layout.numberOfCols);
     const col = i % layout.numberOfCols;
     const x = layout.computedPaddingLeft + col * layout.colStride;
@@ -42,21 +42,24 @@ const drawActiveCells = (ctx: CanvasRenderingContext2D, layout: GridLayout, acti
   ctx.fill();
 };
 
-export const paintCanvas = (
+const clearCanvas = (canvas: HTMLCanvasElement) => {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
+};
+
+export const paintStaticCanvas = (
   canvas: HTMLCanvasElement,
   {
     numberOfCells,
     canvasWidth,
-    startDate,
-    today,
-    highlightCount,
     calendarStyle,
   }: {
     numberOfCells: number;
     canvasWidth: number;
-    startDate: Dayjs;
-    today: Dayjs;
-    highlightCount?: number;
     calendarStyle: CalendarStyle;
   },
 ) => {
@@ -65,21 +68,48 @@ export const paintCanvas = (
     return;
   }
 
-  ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.restore();
+  clearCanvas(canvas);
 
   const layout = createGridLayout(numberOfCells, canvasWidth, calendarStyle);
   if (!layout) {
     return;
   }
 
-  const activeThreshold = highlightCount !== undefined
-    ? highlightCount
-    : today.diff(startDate, 'day') + 1;
-
   drawStaticTiles(ctx, layout);
-  drawActiveCells(ctx, layout, activeThreshold);
-}
+};
+
+export const paintActiveCanvas = (
+  canvas: HTMLCanvasElement,
+  {
+    numberOfCells,
+    canvasWidth,
+    highlightCount,
+    previousCount,
+    calendarStyle,
+  }: {
+    numberOfCells: number;
+    canvasWidth: number;
+    highlightCount: number;
+    previousCount?: number;
+    calendarStyle: CalendarStyle;
+  },
+) => {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    return;
+  }
+
+  const isDelta = previousCount !== undefined && previousCount >= 0 && previousCount <= highlightCount;
+  if (!isDelta) {
+    clearCanvas(canvas);
+  }
+
+  const layout = createGridLayout(numberOfCells, canvasWidth, calendarStyle);
+  if (!layout) {
+    return;
+  }
+
+  const fromIndex = isDelta ? previousCount : 0;
+  drawActiveCells(ctx, layout, fromIndex, highlightCount);
+};
 

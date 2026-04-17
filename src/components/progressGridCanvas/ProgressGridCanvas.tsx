@@ -1,7 +1,7 @@
 import { Dayjs } from 'dayjs'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useHtmlClientDimension } from '../../hooks/utils/useHtmlClientWidth'
-import { paintCanvas } from '../../canvas/paint'
+import { paintStaticCanvas, paintActiveCanvas } from '../../canvas/paint'
 import { useTooltip } from '../../hooks/useTooltip'
 import { useCanvasInteraction } from '../../hooks/useCanvasInteraction'
 import { setupCanvas } from '../../utils/canvasSetup'
@@ -35,6 +35,7 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   onDateHover,
 }: ProgressGridCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const activeCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const unitOverlayCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const dayOverlayCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
@@ -55,6 +56,7 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   const animationFrameRef = useRef<number | null>(null)
   const currentHighlightRef = useRef(0)
   const lastSetupDimsRef = useRef({ width: -1, height: -1, dpr: -1 })
+  const lastActiveSetupDimsRef = useRef({ width: -1, height: -1, dpr: -1 })
   const lastUnitOverlaySetupDimsRef = useRef({ width: -1, height: -1, dpr: -1 })
   const lastDayOverlaySetupDimsRef = useRef({ width: -1, height: -1, dpr: -1 })
   const previousUnitDateRef = useRef<Dayjs | null>(null)
@@ -75,7 +77,7 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
 
   const passedDaysCount = !startDate.isAfter(today, 'day') ? today.diff(startDate, 'day') + 1 : 0
 
-  const drawCanvas = (highlightCount: number) => {
+  const drawStaticLayer = () => {
     if (!canvasRef.current) {
       return
     }
@@ -88,14 +90,44 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
       lastSetupDimsRef.current = { width: canvasWidth, height: canvasHeight, dpr }
     }
 
-    paintCanvas(canvas, {
+    paintStaticCanvas(canvas, {
       numberOfCells: days,
       canvasWidth: gridWidth,
-      startDate,
-      today,
-      highlightCount,
       calendarStyle,
     })
+  }
+
+  const lastPaintedCountRef = useRef(-1)
+
+  const drawActiveLayer = (highlightCount: number, delta: boolean = false) => {
+    if (!activeCanvasRef.current) {
+      return
+    }
+
+    const canvas = activeCanvasRef.current
+    const last = lastActiveSetupDimsRef.current
+
+    const dimsChanged =
+      last.width !== canvasWidth || last.height !== canvasHeight || last.dpr !== dpr
+    if (dimsChanged) {
+      setupCanvas(canvas, canvasWidth, canvasHeight, dpr)
+      lastActiveSetupDimsRef.current = { width: canvasWidth, height: canvasHeight, dpr }
+      lastPaintedCountRef.current = -1
+    }
+
+    const previousCount = delta && lastPaintedCountRef.current >= 0
+      ? lastPaintedCountRef.current
+      : undefined
+
+    paintActiveCanvas(canvas, {
+      numberOfCells: days,
+      canvasWidth: gridWidth,
+      highlightCount,
+      previousCount,
+      calendarStyle,
+    })
+
+    lastPaintedCountRef.current = highlightCount
   }
 
   useEffect(() => {
@@ -108,7 +140,8 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
 
     if (!animateHighlight) {
       currentHighlightRef.current = passedDaysCount
-      drawCanvas(passedDaysCount)
+      lastPaintedCountRef.current = -1
+      drawActiveLayer(passedDaysCount)
       cancelAnimation()
       return
     }
@@ -126,7 +159,7 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
       const eased = Math.pow(progress, 1.8)
       const current = Math.min(passedDaysCount, Math.ceil(eased * passedDaysCount))
       currentHighlightRef.current = current
-      drawCanvas(current)
+      drawActiveLayer(current, true)
 
       if (progress < 1) {
         animationFrameRef.current = requestAnimationFrame(animate)
@@ -142,6 +175,7 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
     return () => {
       cancelAnimation()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     passedDaysCount,
     animateHighlight,
@@ -149,11 +183,15 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
     canvasWidth,
     canvasHeight,
     gridWidth,
-    startDate,
-    today,
     dpr,
     onAnimationFinished,
   ])
+
+  // Static layer: only repaint when grid structure changes
+  useEffect(() => {
+    drawStaticLayer()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [days, canvasWidth, canvasHeight, gridWidth, dpr, calendarStyle])
 
   const ensureCanvasSetup = (
     canvas: HTMLCanvasElement,
@@ -382,6 +420,21 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
           transformOrigin: '0 0',
           display: 'block',
           imageRendering: 'pixelated',
+        }}
+      />
+      <canvas
+        ref={activeCanvasRef}
+        width={canvasWidth}
+        height={canvasHeight}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+          transformOrigin: '0 0',
+          display: 'block',
+          imageRendering: 'pixelated',
+          pointerEvents: 'none',
         }}
       />
       <canvas
