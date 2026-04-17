@@ -34,9 +34,9 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   const dayOverlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [gridWidth, setGridWidth] = useState(8000);
-  const [hoveredDay, setHoveredDay] = useState<Dayjs | null>(null);
+  const hoveredDayRef = useRef<Dayjs | null>(null);
   const { htmlClientWidth, htmlClientHeight } = useHtmlClientDimension();
-  const { showTooltip, hideTooltip, updateTooltipPosition } = useTooltip();
+  const { showTooltip, hideTooltip } = useTooltip();
   const { offset, scale, setOffset, handlePointerDown, handlePointerMove, handlePointerUp, handleWheel } = useCanvasInteraction(0.3);
 
   const animationFrameRef = useRef<number | null>(null);
@@ -231,7 +231,7 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
 
   // Redraw outlines when canvas dimensions change
   useEffect(() => {
-    drawOutlinesForDate(hoveredDay, true);
+    drawOutlinesForDate(hoveredDayRef.current, true);
   }, [canvasWidth, canvasHeight, dpr]);
 
   useEffect(() => {
@@ -271,14 +271,13 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
 
     if (cell) {
       if (hoveredCellIndexRef.current === cell.cellIndex) {
-        updateTooltipPosition(clientX, clientY);
         return;
       }
 
       hoveredCellIndexRef.current = cell.cellIndex;
       const currentDate = startDate.add(cell.cellIndex, 'day');
+      hoveredDayRef.current = currentDate;
       showTooltip(clientX, clientY, currentDate.format('YYYY-MM-DD'));
-      setHoveredDay(currentDate);
       drawOutlinesForDate(currentDate);
       onDateHover?.(currentDate);
     }
@@ -290,6 +289,11 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
   };
 
   const handlePointerMoveWrapper = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.buttons === 1) {
+      handlePointerMove(event);
+      return;
+    }
+
     pendingPointerRef.current = { x: event.clientX, y: event.clientY };
     if (hoverRafRef.current === null) {
       hoverRafRef.current = requestAnimationFrame(() => {
@@ -316,13 +320,13 @@ const ProgressGridCanvas: React.FC<ProgressGridCanvasProps> = ({
 
   const handlePointerLeave = () => {
     if (hoverRafRef.current !== null) {
-       (hoverRafRef.current);
+      cancelAnimationFrame(hoverRafRef.current);
       hoverRafRef.current = null;
     }
     pendingPointerRef.current = null;
     hideTooltip();
     hoveredCellIndexRef.current = null;
-    setHoveredDay(null);
+    hoveredDayRef.current = null;
     drawOutlinesForDate(null, true);
     onDateHover?.(null);
   };
