@@ -1,14 +1,16 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import dayjs from 'dayjs'
 import './App.css'
 import { CellTooltip } from './components/cellTooltip/CellTooltip'
 import SettingsModal from './components/SettingsModal'
 import { calculateLifeStats } from './utils/lifeCalculations'
 import { CanvasEngine } from './canvas/engine'
+import { useCanvasEngineStore } from './store/canvasEngineStore'
 
 const DEFAULT_LIFE_EXPECTANCY = 80
 
 interface AppProps {
-  engine: CanvasEngine;
+  engine: CanvasEngine
 }
 
 function App({ engine }: AppProps) {
@@ -51,9 +53,54 @@ function App({ engine }: AppProps) {
     engine.setGridWidth(width)
   }
 
+  const hoveredDate = useCanvasEngineStore((s) => s.hoveredDate)
+
+  const proportionalInfo = useMemo(() => {
+    if (!hoveredDate || !dob) return null
+    const birthDate = dayjs(dob)
+    const ageInYears = hoveredDate.diff(birthDate, 'year')
+    if (ageInYears <= 0) return null
+    const perceivedHours = 24 * (1 / ageInYears)
+    return {
+      date: hoveredDate.format('YYYY-MM-DD'),
+      age: ageInYears,
+      perceivedHours,
+    }
+  }, [hoveredDate, dob])
+
   return (
     <>
       <CellTooltip />
+
+      {proportionalInfo && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 48,
+            left: 16,
+            padding: '8px 12px',
+            background: 'rgba(0, 0, 0, 0.75)',
+            color: '#e0e0e0',
+            borderRadius: 6,
+            fontSize: 13,
+            lineHeight: 1.5,
+            zIndex: 10,
+            pointerEvents: 'none',
+            fontFamily: 'monospace',
+          }}
+        >
+          <div>{proportionalInfo.date}</div>
+          <div>Age {proportionalInfo.age.toFixed(1)}y</div>
+          <div>
+            A day feels like{' '}
+            <span style={{ color: '#76c893', fontWeight: 600 }}>
+              {proportionalInfo.perceivedHours >= 1
+                ? `${proportionalInfo.perceivedHours.toFixed(1)}h`
+                : `${(proportionalInfo.perceivedHours * 60).toFixed(0)}m`}
+            </span>
+          </div>
+        </div>
+      )}
 
       <input
         type="range"
