@@ -1,5 +1,5 @@
 import { Dayjs } from "dayjs";
-import { useTooltip } from "../../hooks/useTooltip";
+import { useTooltipStore } from "../../store/tooltipStore";
 import { calculateTableGridDimensions } from "../../canvas/utils";
 
 const cellConfig = {
@@ -26,7 +26,11 @@ export const ProgressGridTable = ({
   today: Dayjs;
   collapseGridGap?: boolean;
 }) => {
-  const { showTooltip, hideTooltip, updateTooltipPosition } = useTooltip();
+  const showTooltip = useTooltipStore((s) => s.showTooltip);
+  const setHidden = useTooltipStore((s) => s.setHidden);
+  const updatePosition = useTooltipStore((s) => s.updatePosition);
+  const hideTooltip = () => setHidden(true);
+  const updateTooltipPosition = (x: number, y: number) => updatePosition(x, y);
   const gap = collapseGridGap ? 0 : 3;
 
   const { numOfCols, numOfRows, getNumOfCols } = calculateTableGridDimensions(

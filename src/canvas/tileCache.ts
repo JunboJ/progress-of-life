@@ -2,6 +2,7 @@ import { CalendarStyle } from './style';
 import { calculateCalendarDimension } from './utils';
 
 export const TILE_SIZE = 512;
+export const MAX_LOD = 4;
 
 export interface GridLayout {
   canvasWidth: number;
@@ -22,25 +23,33 @@ export interface StaticTile {
   tileY: number;
   width: number;
   height: number;
+  logicalWidth: number;
+  logicalHeight: number;
   canvas: HTMLCanvasElement;
 }
 
-interface StaticTileCache {
-  key: string;
-  tiles: StaticTile[];
+export interface LODData {
+  level: number;
+  coverage: number;
+  tileCols: number;
+  tileRows: number;
+  tiles: Map<string, StaticTile>;
 }
 
-let staticTileCache: StaticTileCache | null = null;
+interface TileCache {
+  key: string;
+  lods: LODData[];
+}
+
+let tileCache: TileCache | null = null;
 
 export const createGridLayout = (
   numberOfCells: number,
   canvasWidth: number,
   calendarStyle: CalendarStyle,
 ): GridLayout | null => {
-  const { numberOfCols, computedPaddingLeft, numberOfRows, daysOfLastRow } = calculateCalendarDimension(calendarStyle, {
-    numberOfCells,
-    canvasWidth,
-  });
+  const { numberOfCols, computedPaddingLeft, numberOfRows, daysOfLastRow } =
+    calculateCalendarDimension(calendarStyle, { numberOfCells, canvasWidth });
 
   if (isNaN(numberOfCells) || isNaN(numberOfCols) || isNaN(numberOfRows) || numberOfCols <= 0) {
     return null;
@@ -58,116 +67,133 @@ export const createGridLayout = (
     calendarStyle.paddingBottom;
 
   return {
-    canvasWidth,
-    canvasHeight,
-    numberOfCells,
-    numberOfCols,
-    totalCells,
-    computedPaddingLeft,
-    cellWidth,
-    cellHeight,
-    colStride,
-    rowStride,
-    paddingTop,
+    canvasWidth, canvasHeight, numberOfCells, numberOfCols, totalCells,
+    computedPaddingLeft, cellWidth, cellHeight, colStride, rowStride, paddingTop,
   };
 };
 
-const buildTileCacheKey = (layout: GridLayout, backgroundColor: string, inactiveColor: string): string => {
-  return [
-    layout.canvasWidth,
-    layout.canvasHeight,
-    layout.numberOfCells,
-    layout.numberOfCols,
-    layout.totalCells,
-    layout.computedPaddingLeft,
-    layout.cellWidth,
-    layout.cellHeight,
-    layout.colStride,
-    layout.rowStride,
-    layout.paddingTop,
-    backgroundColor,
-    inactiveColor,
-    TILE_SIZE,
-  ].join('|');
+export const pickLODLevel = (scale: number): number => {
+  return Math.max(0, Math.min(MAX_LOD, Math.floor(-Math.log2(scale))));
 };
 
-const fillTileBackground = (ctx: CanvasRenderingContext2D, width: number, height: number, backgroundColor: string) => {
-  ctx.fillStyle = backgroundColor;
-  ctx.fillRect(0, 0, width, height);
-};
+const BACKGROUND_COLOR = '#23272e';
+const INACTIVE_CELL_COLOR = '#2d3a4a';
 
-const drawInactiveCellsInTile = (
+/**
+ * Draw only cells that intersect the given world-space region.
+ * Assumes ctx transform is already set for the tile's coordinate space.
+ */
+const drawCellsInRegion = (
   ctx: CanvasRenderingContext2D,
   layout: GridLayout,
-  tileX: number,
-  tileY: number,
-  tileWidth: number,
-  tileHeight: number,
-  inactiveColor: string,
-) => {
-  const tileLeft = tileX * TILE_SIZE;
-  const tileTop = tileY * TILE_SIZE;
-  const tileRight = tileLeft + tileWidth;
-  const tileBottom = tileTop + tileHeight;
+  regionLeft: number,
+  regionTop: number,
+  regionRight: number,
+  regionBottom: number,
+  color: string,
+): void => {
+  const startCol = Math.max(
+    0,
+    Math.floor((regionLeft - layout.computedPaddingLeft) / layout.colStride),
+  );
+  const endCol = Math.min(
+    layout.numberOfCols - 1,
+    Math.ceil((regionRight - layout.computedPaddingLeft) / layout.colStride),
+  );
+  const startRow = Math.max(
+    0,
+    Math.floor((regionTop - layout.paddingTop) / layout.rowStride),
+  );
+  const totalRows = Math.ceil(layout.totalCells / layout.numberOfCols);
+  const endRow = Math.min(
+    totalRows - 1,
+    Math.ceil((regionBottom - layout.paddingTop) / layout.rowStride),
+  );
 
-  ctx.fillStyle = inactiveColor;
+  if (startCol > endCol || startRow > endRow) return;
+
+  ctx.fillStyle = color;
   ctx.beginPath();
 
-  for (let i = 0; i < layout.totalCells; i++) {
-    const row = Math.floor(i / layout.numberOfCols);
-    const col = i % layout.numberOfCols;
-    const x = layout.computedPaddingLeft + col * layout.colStride;
-    const y = layout.paddingTop + row * layout.rowStride;
-
-    if (x + layout.cellWidth <= tileLeft || x >= tileRight || y + layout.cellHeight <= tileTop || y >= tileBottom) {
-      continue;
+  for (let row = startRow; row <= endRow; row++) {
+    const rowStart = row * layout.numberOfCols;
+    for (let col = startCol; col <= endCol; col++) {
+      if (rowStart + col >= layout.totalCells) break;
+      const x = layout.computedPaddingLeft + col * layout.colStride;
+      const y = layout.paddingTop + row * layout.rowStride;
+      ctx.rect(x, y, layout.cellWidth, layout.cellHeight);
     }
-
-    ctx.rect(x - tileLeft, y - tileTop, layout.cellWidth, layout.cellHeight);
   }
 
   ctx.fill();
 };
 
-const buildStaticTiles = (layout: GridLayout, backgroundColor: string, inactiveColor: string): StaticTile[] => {
-  const tileCols = Math.ceil(layout.canvasWidth / TILE_SIZE);
-  const tileRows = Math.ceil(layout.canvasHeight / TILE_SIZE);
-  const tiles: StaticTile[] = [];
+const buildLODLevel = (layout: GridLayout, level: number): LODData => {
+  const power = Math.pow(2, level);
+  const scaleFactor = 1 / power;
+  const coverage = TILE_SIZE * power;
+  const tileCols = Math.ceil(layout.canvasWidth / coverage);
+  const tileRows = Math.ceil(layout.canvasHeight / coverage);
+  const tiles = new Map<string, StaticTile>();
 
-  for (let tileY = 0; tileY < tileRows; tileY++) {
-    for (let tileX = 0; tileX < tileCols; tileX++) {
-      const width = Math.min(TILE_SIZE, layout.canvasWidth - tileX * TILE_SIZE);
-      const height = Math.min(TILE_SIZE, layout.canvasHeight - tileY * TILE_SIZE);
-      const tileCanvas = document.createElement('canvas');
-      tileCanvas.width = width;
-      tileCanvas.height = height;
+  for (let ty = 0; ty < tileRows; ty++) {
+    for (let tx = 0; tx < tileCols; tx++) {
+      const logicalLeft = tx * coverage;
+      const logicalTop = ty * coverage;
+      const logicalWidth = Math.min(coverage, layout.canvasWidth - logicalLeft);
+      const logicalHeight = Math.min(coverage, layout.canvasHeight - logicalTop);
+      const bitmapW = Math.ceil(logicalWidth * scaleFactor);
+      const bitmapH = Math.ceil(logicalHeight * scaleFactor);
 
-      const tileCtx = tileCanvas.getContext('2d');
-      if (!tileCtx) {
-        continue;
-      }
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmapW;
+      canvas.height = bitmapH;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) continue;
 
-      fillTileBackground(tileCtx, width, height, backgroundColor);
-      drawInactiveCellsInTile(tileCtx, layout, tileX, tileY, width, height, inactiveColor);
+      // Transform: scale to LOD resolution + offset to tile's world region
+      ctx.scale(scaleFactor, scaleFactor);
+      ctx.translate(-logicalLeft, -logicalTop);
 
-      tiles.push({ tileX, tileY, width, height, canvas: tileCanvas });
+      ctx.fillStyle = BACKGROUND_COLOR;
+      ctx.fillRect(logicalLeft, logicalTop, logicalWidth, logicalHeight);
+
+      drawCellsInRegion(
+        ctx, layout,
+        logicalLeft, logicalTop,
+        logicalLeft + logicalWidth, logicalTop + logicalHeight,
+        INACTIVE_CELL_COLOR,
+      );
+
+      tiles.set(`${tx},${ty}`, {
+        tileX: tx, tileY: ty, width: bitmapW, height: bitmapH,
+        logicalWidth, logicalHeight, canvas,
+      });
     }
   }
 
-  return tiles;
+  return { level, coverage, tileCols, tileRows, tiles };
 };
 
-export const getStaticTiles = (layout: GridLayout, backgroundColor: string, inactiveColor: string): StaticTile[] => {
-  const key = buildTileCacheKey(layout, backgroundColor, inactiveColor);
-  if (staticTileCache && staticTileCache.key === key) {
-    return staticTileCache.tiles;
+const buildCacheKey = (layout: GridLayout): string => {
+  return `${layout.canvasWidth}|${layout.canvasHeight}|${layout.numberOfCells}|${layout.numberOfCols}|${layout.totalCells}|${layout.computedPaddingLeft}|${layout.cellWidth}|${layout.cellHeight}|${layout.colStride}|${layout.rowStride}|${layout.paddingTop}`;
+};
+
+export const getLODData = (layout: GridLayout): LODData[] => {
+  const key = buildCacheKey(layout);
+  if (tileCache && tileCache.key === key) {
+    return tileCache.lods;
   }
 
-  const tiles = buildStaticTiles(layout, backgroundColor, inactiveColor);
-  staticTileCache = { key, tiles };
-  return tiles;
+  const lods: LODData[] = [];
+  for (let level = 0; level <= MAX_LOD; level++) {
+    lods.push(buildLODLevel(layout, level));
+  }
+
+  tileCache = { key, lods };
+  return lods;
 };
 
-export const clearStaticTileCache = () => {
-  staticTileCache = null;
+export const clearTileCache = (): void => {
+  tileCache = null;
 };

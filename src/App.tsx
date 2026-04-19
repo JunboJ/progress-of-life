@@ -1,21 +1,25 @@
 import { useState } from 'react'
 import './App.css'
 import { CellTooltip } from './components/cellTooltip/CellTooltip'
-import ProgressGridCanvas from './components/progressGridCanvas/ProgressGridCanvas'
 import SettingsModal from './components/SettingsModal'
 import { calculateLifeStats } from './utils/lifeCalculations'
+import { CanvasEngine } from './canvas/engine'
 
 const DEFAULT_LIFE_EXPECTANCY = 80
 
-function App() {
+interface AppProps {
+  engine: CanvasEngine;
+}
+
+function App({ engine }: AppProps) {
   const [lifeSpan, setLifeSpan] = useState<number>(DEFAULT_LIFE_EXPECTANCY)
   const [dob, setDob] = useState('')
   const [useTable, setUseTable] = useState(false)
-  const [collapseGridGap, setCollapseGridGap] = useState(true)
-  const [animateHighlight, setAnimateHighlight] = useState(false)
+  const [collapseGridGap, setCollapseGridGap] = useState(false)
+  const [gridWidth, setGridWidth] = useState(8000)
   const [autoOpenSettings, setAutoOpenSettings] = useState(dob === '')
 
-  const { startDate, endDate, today, months, days, daysLived } = calculateLifeStats(lifeSpan, dob)
+  const { today, months, daysLived } = calculateLifeStats(lifeSpan, dob)
 
   const handleSaveSettings = (
     newLifeSpan: number,
@@ -27,28 +31,47 @@ function App() {
     setDob(newDob)
     setUseTable(newUseTable)
     setCollapseGridGap(newCollapseGridGap)
-    setAnimateHighlight(!!newDob)
     setAutoOpenSettings(false)
+
+    const stats = calculateLifeStats(newLifeSpan, newDob)
+    engine.update({
+      days: stats.days,
+      startDate: stats.startDate,
+      today: stats.today,
+      collapseGridGap: newCollapseGridGap,
+      animateHighlight: !!newDob,
+      onAnimationFinished: () => {
+        engine.update({ animateHighlight: false })
+      },
+    })
   }
 
-  const handleAnimationFinished = () => {
-    setAnimateHighlight(false)
+  const handleGridWidthChange = (width: number) => {
+    setGridWidth(width)
+    engine.setGridWidth(width)
   }
 
   return (
-    <div className="app-root root night-mode-color">
-      <div className="canvas-area">
-        <ProgressGridCanvas
-          startDate={startDate}
-          endDate={endDate}
-          today={today}
-          days={days}
-          animateHighlight={animateHighlight}
-          collapseGridGap={collapseGridGap}
-          onAnimationFinished={handleAnimationFinished}
-        />
-        <CellTooltip />
-      </div>
+    <>
+      <CellTooltip />
+
+      <input
+        type="range"
+        min="1000"
+        max="10000"
+        step="100"
+        value={gridWidth}
+        onChange={(e) => handleGridWidthChange(Number(e.target.value))}
+        style={{
+          position: 'fixed',
+          bottom: 16,
+          right: 16,
+          width: 200,
+          cursor: 'pointer',
+          zIndex: 10,
+        }}
+        title={`Grid width: ${gridWidth}`}
+      />
 
       <SettingsModal
         lifeSpan={lifeSpan}
@@ -62,7 +85,7 @@ function App() {
         autoOpen={autoOpenSettings}
         onAutoOpenHandled={() => setAutoOpenSettings(false)}
       />
-    </div>
+    </>
   )
 }
 
