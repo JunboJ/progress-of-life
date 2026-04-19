@@ -440,7 +440,7 @@ export class CanvasEngine {
     const style = this.calendarStyle;
 
     // Compensate line width so it's constant in screen pixels
-    const lw = 1 / this.scale;
+    const lw = 0.6 / this.scale;
 
     const cellIndex = this.hoveredDay.diff(startDate, 'day');
     const dayBounds = getDayOutlineBounds(cellIndex, days, gridWidth, style);
