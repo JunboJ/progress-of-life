@@ -1,4 +1,4 @@
-import { Dayjs } from 'dayjs';
+import { DateObj, diffDates, addDuration, isAfter, isBefore, startOf, endOf } from '../utils/date';
 import { CalendarStyle } from './style';
 import { calculateCalendarDimension } from './utils';
 
@@ -26,13 +26,13 @@ const getCellPosition = (
   return { x, y, row, col };
 };
 
-const getCellIndex = (date: Dayjs, startDate: Dayjs) => {
-  return date.diff(startDate, 'day');
+const getCellIndex = (date: DateObj, startDate: DateObj) => {
+  return diffDates(date, startDate, 'day');
 };
 
 export const getOutlineBounds = (
-  startDate: Dayjs,
-  hoverDate: Dayjs,
+  startDate: DateObj,
+  hoverDate: DateObj,
   numberOfCells: number,
   gridWidth: number,
   unit: 'year' | 'month' | 'week',
@@ -40,30 +40,31 @@ export const getOutlineBounds = (
 ): RowOutlineBounds[] | null => {
   const dimensions = calculateCalendarDimension(calendarStyle, { numberOfCells, canvasWidth: gridWidth });
 
-  let groupStartDate: Dayjs;
-  let groupEndDate: Dayjs;
+  let groupStartDate: DateObj;
+  let groupEndDate: DateObj;
 
   if (unit === 'year') {
-    groupStartDate = hoverDate.startOf('year');
-    groupEndDate = hoverDate.endOf('year');
+    groupStartDate = startOf(hoverDate, 'year');
+    groupEndDate = endOf(hoverDate, 'year');
   } else if (unit === 'month') {
-    groupStartDate = hoverDate.startOf('month');
-    groupEndDate = hoverDate.endOf('month');
+    groupStartDate = startOf(hoverDate, 'month');
+    groupEndDate = endOf(hoverDate, 'month');
   } else {
     // week
-    groupStartDate = hoverDate.startOf('week');
-    groupEndDate = hoverDate.endOf('week');
+    groupStartDate = startOf(hoverDate, 'week');
+    groupEndDate = endOf(hoverDate, 'week');
   }
 
   // Check if group intersects with calendar range
-  if (groupEndDate.isBefore(startDate) || groupStartDate.isAfter(startDate.add(numberOfCells - 1, 'day'))) {
+  const calendarEndDate = addDuration(startDate, numberOfCells - 1, 'day');
+  if (isBefore(groupEndDate, startDate) || isAfter(groupStartDate, calendarEndDate)) {
     return null;
   }
 
   // Clamp to calendar range
-  const clampedStartDate = groupStartDate.isBefore(startDate) ? startDate : groupStartDate;
-  const clampedEndDate = groupEndDate.isAfter(startDate.add(numberOfCells - 1, 'day'))
-    ? startDate.add(numberOfCells - 1, 'day')
+  const clampedStartDate = isBefore(groupStartDate, startDate) ? startDate : groupStartDate;
+  const clampedEndDate = isAfter(groupEndDate, calendarEndDate)
+    ? calendarEndDate
     : groupEndDate;
 
   const startIndex = getCellIndex(clampedStartDate, startDate);

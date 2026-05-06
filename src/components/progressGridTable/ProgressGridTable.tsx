@@ -1,4 +1,4 @@
-import { Dayjs } from "dayjs";
+import { DateObj, addDuration, formatDate, isSameOrAfter, diffDates } from "../../utils/date";
 import { useTooltipStore } from "../../store/tooltipStore";
 import { calculateTableGridDimensions } from "../../canvas/utils";
 
@@ -22,8 +22,8 @@ export const ProgressGridTable = ({
   collapseGridGap = false,
 }: {
   days: number;
-  startDate: Dayjs;
-  today: Dayjs;
+  startDate: DateObj;
+  today: DateObj;
   collapseGridGap?: boolean;
 }) => {
   const showTooltip = useTooltipStore((s) => s.showTooltip);
@@ -62,18 +62,15 @@ export const ProgressGridTable = ({
                 {Array(getNumOfCols(ri))
                   .fill(0)
                   .map((_, di) => {
-                    const currentDate = startDate.add(
-                      ri * numOfCols + di,
-                      "day",
-                    );
+                    const currentDate = addDuration(startDate, ri * numOfCols + di, "day");
                     return (
                       <td
                         key={`row-${ri}-data-${di}`}
-                        data-tooltip-content={currentDate.format("YYYY-MM-DD")}
+                        data-tooltip-content={formatDate(currentDate, "YYYY-MM-DD")}
                         data-index-of-year={
-                          currentDate.isSameOrAfter(today)
+                          isSameOrAfter(currentDate, today)
                             ? -1
-                            : currentDate.diff(startDate, "y") % 10
+                            : diffDates(currentDate, startDate, "y") % 10
                         }
                         className={`cell ${cellConfig.sizes.mid.className}`}
                         onMouseEnter={(e) => {

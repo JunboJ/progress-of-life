@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Dayjs } from "dayjs";
+import { DateObj, formatDate } from "../utils/date";
 import Modal from "./Modal";
 import "./SettingsModal.css";
 
@@ -8,7 +8,7 @@ interface SettingsModalProps {
   dob: string;
   useTable: boolean;
   collapseGridGap: boolean;
-  today: Dayjs;
+  today: DateObj;
   months: number;
   daysLived: number;
   onSave: (
@@ -90,7 +90,7 @@ const SettingsModal = ({
             type="date"
             value={draftDob}
             onChange={(e) => setDraftDob(e.target.value)}
-            max={today.format("YYYY-MM-DD")}
+            max={formatDate(today, "YYYY-MM-DD")}
           />
         </div>
 

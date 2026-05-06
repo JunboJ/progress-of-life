@@ -1,23 +1,23 @@
-import dayjs, { Dayjs } from 'dayjs';
+import { DateObj, now, parseDate, addDuration, diffDates } from './date';
 
 export interface LifeCalculations {
-  startDate: Dayjs;
-  endDate: Dayjs;
-  today: Dayjs;
+  startDate: DateObj;
+  endDate: DateObj;
+  today: DateObj;
   months: number;
   days: number;
   daysLived: number;
 }
 
 export const calculateLifeStats = (lifeSpan: number, dob: string): LifeCalculations => {
-  const assumedDod = dayjs().add(lifeSpan, 'y');
-  const assumedDoB = dayjs();
-  const startDate = dob ? dayjs(dob) : assumedDoB;
-  const endDate = dob ? dayjs(dob).add(lifeSpan, 'y') : assumedDod;
-  const today = dayjs();
-  const months = dayjs(endDate).diff(startDate, 'M');
-  const days = dayjs(endDate).diff(startDate, 'd');
-  const daysLived = dayjs().diff(startDate, 'd');
+  const assumedDod = addDuration(now(), lifeSpan, 'y');
+  const assumedDoB = now();
+  const startDate = dob ? parseDate(dob) : assumedDoB;
+  const endDate = dob ? addDuration(parseDate(dob), lifeSpan, 'y') : assumedDod;
+  const today = now();
+  const months = diffDates(endDate, startDate, 'M');
+  const days = diffDates(endDate, startDate, 'd');
+  const daysLived = diffDates(now(), startDate, 'd');
 
   return {
     startDate,

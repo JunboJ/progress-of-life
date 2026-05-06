@@ -2,12 +2,9 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
-import dayjs from "dayjs";
-import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import { CanvasEngine } from "./canvas/engine.ts";
 import { calculateLifeStats } from "./utils/lifeCalculations.ts";
-
-dayjs.extend(isSameOrAfter);
+import "./utils/date.ts";
 
 const DEFAULT_LIFE_EXPECTANCY = 80;
 

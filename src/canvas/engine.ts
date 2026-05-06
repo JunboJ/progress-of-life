@@ -1,4 +1,4 @@
-import { Dayjs } from 'dayjs';
+import { DateObj, isAfter, diffDates, addDuration, formatDate } from '../utils/date';
 import { CalendarStyle, CalendarStyle as DefaultCalendarStyle } from './style';
 import { getCalendarCellFromPoint } from './utils';
 import {
@@ -13,8 +13,8 @@ import { useCanvasEngineStore } from '../store/canvasEngineStore';
 
 export interface CanvasEngineConfig {
   days: number;
-  startDate: Dayjs;
-  today: Dayjs;
+  startDate: DateObj;
+  today: DateObj;
   gridWidth: number;
   collapseGridGap: boolean;
   animateHighlight: boolean;
@@ -55,7 +55,7 @@ export class CanvasEngine {
   private activeHighlightCount = 0;
 
   // Hover
-  private hoveredDay: Dayjs | null = null;
+  private hoveredDay: DateObj | null = null;
   private hoveredCellIndex: number | null = null;
   private hoverRafId: number | null = null;
   private pendingPointer: { x: number; y: number } | null = null;
@@ -421,7 +421,7 @@ export class CanvasEngine {
 
   private getPassedDaysCount(): number {
     const { startDate, today } = this.config;
-    return !startDate.isAfter(today, 'day') ? today.diff(startDate, 'day') + 1 : 0;
+    return !isAfter(startDate, today, 'day') ? diffDates(today, startDate, 'day') + 1 : 0;
   }
 
   // --- Overlay layer (outlines) ---
@@ -442,7 +442,7 @@ export class CanvasEngine {
     // Compensate line width so it's constant in screen pixels
     const lw = 0.6 / this.scale;
 
-    const cellIndex = this.hoveredDay.diff(startDate, 'day');
+    const cellIndex = diffDates(this.hoveredDay, startDate, 'day');
     const dayBounds = getDayOutlineBounds(cellIndex, days, gridWidth, style);
     if (dayBounds) drawOutline(ctx, dayBounds, '#FFFFFF', 2 * lw);
 
@@ -479,10 +479,10 @@ export class CanvasEngine {
       if (this.hoveredCellIndex === cell.cellIndex) return;
 
       this.hoveredCellIndex = cell.cellIndex;
-      const currentDate = this.config.startDate.add(cell.cellIndex, 'day');
+      const currentDate = addDuration(this.config.startDate, cell.cellIndex, 'day');
       this.hoveredDay = currentDate;
 
-      useTooltipStore.getState().showTooltip(clientX, clientY, currentDate.format('YYYY-MM-DD'));
+      useTooltipStore.getState().showTooltip(clientX, clientY, formatDate(currentDate, 'YYYY-MM-DD'));
       useCanvasEngineStore.getState().setHoveredDate(currentDate);
 
       this.dirty.overlay = true;

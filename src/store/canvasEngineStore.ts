@@ -1,9 +1,9 @@
 import { create } from 'zustand';
-import { Dayjs } from 'dayjs';
+import { DateObj } from '../utils/date';
 
 interface CanvasEngineState {
-  hoveredDate: Dayjs | null;
-  setHoveredDate: (date: Dayjs | null) => void;
+  hoveredDate: DateObj | null;
+  setHoveredDate: (date: DateObj | null) => void;
 }
 
 export const useCanvasEngineStore = create<CanvasEngineState>()((set) => ({
