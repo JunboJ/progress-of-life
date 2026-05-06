@@ -12,17 +12,17 @@ const { startDate, today, days } = calculateLifeStats(DEFAULT_LIFE_EXPECTANCY, "
 
 const canvasRoot = document.getElementById("canvas-root")!;
 const engine = new CanvasEngine(canvasRoot, {
-  days,
-  startDate,
-  today,
-  gridWidth: 8000,
-  collapseGridGap: false,
-  animateHighlight: false,
+	days,
+	startDate,
+	today,
+	gridWidth: 8000,
+	collapseGridGap: false,
+	animateHighlight: false,
 });
 engine.mount();
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App engine={engine} />
-  </StrictMode>,
+	<StrictMode>
+		<App engine={engine} />
+	</StrictMode>
 );

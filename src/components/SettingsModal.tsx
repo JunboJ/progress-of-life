@@ -4,140 +4,130 @@ import Modal from "./Modal";
 import "./SettingsModal.css";
 
 interface SettingsModalProps {
-  lifeSpan: number;
-  dob: string;
-  useTable: boolean;
-  collapseGridGap: boolean;
-  today: DateObj;
-  months: number;
-  daysLived: number;
-  onSave: (
-    lifeSpan: number,
-    dob: string,
-    useTable: boolean,
-    collapseGridGap: boolean,
-  ) => void;
-  autoOpen: boolean;
-  onAutoOpenHandled: () => void;
+	lifeSpan: number;
+	dob: string;
+	useTable: boolean;
+	collapseGridGap: boolean;
+	today: DateObj;
+	months: number;
+	daysLived: number;
+	onSave: (lifeSpan: number, dob: string, useTable: boolean, collapseGridGap: boolean) => void;
+	autoOpen: boolean;
+	onAutoOpenHandled: () => void;
 }
 
 const SettingsModal = ({
-  lifeSpan,
-  dob,
-  useTable,
-  collapseGridGap,
-  today,
-  months,
-  daysLived,
-  onSave,
-  autoOpen,
-  onAutoOpenHandled,
+	lifeSpan,
+	dob,
+	useTable,
+	collapseGridGap,
+	today,
+	months,
+	daysLived,
+	onSave,
+	autoOpen,
+	onAutoOpenHandled,
 }: SettingsModalProps) => {
-  const [open, setOpen] = useState(false);
-  const [draftLifeSpan, setDraftLifeSpan] = useState<number>(lifeSpan);
-  const [draftDob, setDraftDob] = useState(dob);
-  const [draftUseTable, setDraftUseTable] = useState(useTable);
-  const [draftCollapseGridGap, setDraftCollapseGridGap] = useState(collapseGridGap);
+	const [open, setOpen] = useState(false);
+	const [draftLifeSpan, setDraftLifeSpan] = useState<number>(lifeSpan);
+	const [draftDob, setDraftDob] = useState(dob);
+	const [draftUseTable, setDraftUseTable] = useState(useTable);
+	const [draftCollapseGridGap, setDraftCollapseGridGap] = useState(collapseGridGap);
 
-  useEffect(() => {
-    if (open) {
-      setDraftLifeSpan(lifeSpan);
-      setDraftDob(dob);
-      setDraftUseTable(useTable);
-      setDraftCollapseGridGap(collapseGridGap);
-    }
-  }, [open, lifeSpan, dob, useTable, collapseGridGap]);
+	useEffect(() => {
+		if (open) {
+			setDraftLifeSpan(lifeSpan);
+			setDraftDob(dob);
+			setDraftUseTable(useTable);
+			setDraftCollapseGridGap(collapseGridGap);
+		}
+	}, [open, lifeSpan, dob, useTable, collapseGridGap]);
 
-  useEffect(() => {
-    if (autoOpen && !open) {
-      setOpen(true);
-      onAutoOpenHandled();
-    }
-  }, [autoOpen, onAutoOpenHandled, open]);
+	useEffect(() => {
+		if (autoOpen && !open) {
+			setOpen(true);
+			onAutoOpenHandled();
+		}
+	}, [autoOpen, onAutoOpenHandled, open]);
 
-  const close = () => setOpen(false);
+	const close = () => setOpen(false);
 
-  const save = () => {
-    onSave(
-      Math.max(1, Math.floor(draftLifeSpan)),
-      draftDob,
-      draftUseTable,
-      draftCollapseGridGap,
-    );
-    close();
-  };
+	const save = () => {
+		onSave(Math.max(1, Math.floor(draftLifeSpan)), draftDob, draftUseTable, draftCollapseGridGap);
+		close();
+	};
 
-  return (
-    <>
-      <button className="floating-settings-button" onClick={() => setOpen(true)}>
-        ⚙️ Settings
-      </button>
+	return (
+		<>
+			<button className="floating-settings-button" onClick={() => setOpen(true)}>
+				⚙️ Settings
+			</button>
 
-      <Modal open={open} title="App Settings" onClose={close}>
-        <div className="settings-field">
-          <label>Life span (years)</label>
-          <input
-            type="number"
-            min={1}
-            value={draftLifeSpan}
-            onChange={(e) => setDraftLifeSpan(Number(e.target.value))}
-          />
-        </div>
+			<Modal open={open} title="App Settings" onClose={close}>
+				<div className="settings-field">
+					<label>Life span (years)</label>
+					<input
+						type="number"
+						min={1}
+						value={draftLifeSpan}
+						onChange={(e) => setDraftLifeSpan(Number(e.target.value))}
+					/>
+				</div>
 
-        <div className="settings-field">
-          <label>Date of birth</label>
-          <input
-            type="date"
-            value={draftDob}
-            onChange={(e) => setDraftDob(e.target.value)}
-            max={formatDate(today, "YYYY-MM-DD")}
-          />
-        </div>
+				<div className="settings-field">
+					<label>Date of birth</label>
+					<input
+						type="date"
+						value={draftDob}
+						onChange={(e) => setDraftDob(e.target.value)}
+						max={formatDate(today, "YYYY-MM-DD")}
+					/>
+				</div>
 
-        {!dob ? (
-          <div className="settings-warning">
-            Please enter your date of birth to unlock the life progress canvas.
-          </div>
-        ) : null}
+				{!dob ? (
+					<div className="settings-warning">
+						Please enter your date of birth to unlock the life progress canvas.
+					</div>
+				) : null}
 
-        <div className="settings-field settings-switch-row">
-          <label>
-            <input
-              type="checkbox"
-              checked={draftUseTable}
-              onChange={(e) => setDraftUseTable(e.target.checked)}
-            />
-            Use Table Grid System
-          </label>
-        </div>
+				<div className="settings-field settings-switch-row">
+					<label>
+						<input
+							type="checkbox"
+							checked={draftUseTable}
+							onChange={(e) => setDraftUseTable(e.target.checked)}
+						/>
+						Use Table Grid System
+					</label>
+				</div>
 
-        <div className="settings-field settings-switch-row">
-          <label>
-            <input
-              type="checkbox"
-              checked={draftCollapseGridGap}
-              onChange={(e) => setDraftCollapseGridGap(e.target.checked)}
-            />
-            Remove grid gaps for a seamless layout
-          </label>
-        </div>
+				<div className="settings-field settings-switch-row">
+					<label>
+						<input
+							type="checkbox"
+							checked={draftCollapseGridGap}
+							onChange={(e) => setDraftCollapseGridGap(e.target.checked)}
+						/>
+						Remove grid gaps for a seamless layout
+					</label>
+				</div>
 
-        <div className="settings-summary">
-          <span>months lived: {months}</span>
-          <span>days lived: {daysLived}</span>
-        </div>
+				<div className="settings-summary">
+					<span>months lived: {months}</span>
+					<span>days lived: {daysLived}</span>
+				</div>
 
-        <div className="settings-footer">
-          <button type="button" className="button button-secondary" onClick={close}>
-            Cancel
-          </button>
-          <button type="button" className="button button-primary" onClick={save}>
-            Save
-          </button>
-        </div>
-      </Modal>
-    </>
-  );
+				<div className="settings-footer">
+					<button type="button" className="button button-secondary" onClick={close}>
+						Cancel
+					</button>
+					<button type="button" className="button button-primary" onClick={save}>
+						Save
+					</button>
+				</div>
+			</Modal>
+		</>
+	);
 };
 
 export default SettingsModal;

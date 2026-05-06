@@ -1,13 +1,13 @@
 // ─── Canvas Colors ────────────────────────────────────────────────────────────
-export const COLOR_BACKGROUND = '#23272e';
-export const COLOR_CELL_INACTIVE = '#2d3a4a';
-export const COLOR_CELL_ACTIVE = '#0b3d91';
+export const COLOR_BACKGROUND = "#23272e";
+export const COLOR_CELL_INACTIVE = "#2d3a4a";
+export const COLOR_CELL_ACTIVE = "#0b3d91";
 
 // ─── Outline Colors ───────────────────────────────────────────────────────────
-export const COLOR_OUTLINE_DAY = '#FFFFFF';
-export const COLOR_OUTLINE_YEAR = '#FF6B6B';
-export const COLOR_OUTLINE_MONTH = '#4ECDC4';
-export const COLOR_OUTLINE_WEEK = '#FFE66D';
+export const COLOR_OUTLINE_DAY = "#FFFFFF";
+export const COLOR_OUTLINE_YEAR = "#FF6B6B";
+export const COLOR_OUTLINE_MONTH = "#4ECDC4";
+export const COLOR_OUTLINE_WEEK = "#FFE66D";
 
 // ─── Outline Geometry ─────────────────────────────────────────────────────────
 /** Pixel padding added around each cell when drawing outline bounds. */
