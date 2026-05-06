@@ -10,6 +10,24 @@ import {
 import { createGridLayout, getLODData, pickLODLevel, GridLayout, LODData } from './tileCache';
 import { useTooltipStore } from '../store/tooltipStore';
 import { useCanvasEngineStore } from '../store/canvasEngineStore';
+import {
+  COLOR_BACKGROUND,
+  COLOR_CELL_ACTIVE,
+  COLOR_OUTLINE_DAY,
+  COLOR_OUTLINE_YEAR,
+  COLOR_OUTLINE_MONTH,
+  COLOR_OUTLINE_WEEK,
+  OUTLINE_BASE_LINE_WIDTH,
+  OUTLINE_DAY_LINE_WIDTH_MULTIPLIER,
+  OUTLINE_GROUP_LINE_WIDTH_MULTIPLIER,
+  INITIAL_SCALE,
+  MIN_SCALE,
+  MAX_SCALE,
+  ZOOM_IN_FACTOR,
+  ZOOM_OUT_FACTOR,
+  ANIMATION_DURATION_MS,
+  ANIMATION_EASE_POWER,
+} from './constants';
 
 export interface CanvasEngineConfig {
   days: number;
@@ -20,10 +38,6 @@ export interface CanvasEngineConfig {
   animateHighlight: boolean;
   onAnimationFinished?: () => void;
 }
-
-const INITIAL_SCALE = 0.3;
-const BACKGROUND_COLOR = '#23272e';
-const ACTIVE_CELL_COLOR = '#0b3d91';
 
 export class CanvasEngine {
   private container: HTMLElement;
@@ -80,7 +94,7 @@ export class CanvasEngine {
 
     container.style.overflow = 'hidden';
     container.style.touchAction = 'none';
-    container.style.backgroundColor = BACKGROUND_COLOR;
+    container.style.backgroundColor = COLOR_BACKGROUND;
 
     this.staticCanvas = this.createCanvas();
     this.activeCanvas = this.createCanvas();
@@ -352,9 +366,8 @@ export class CanvasEngine {
     if (!this.animationStartTime) this.animationStartTime = timestamp;
 
     const elapsed = timestamp - this.animationStartTime;
-    const duration = 5000;
-    const progress = Math.min(1, elapsed / duration);
-    const eased = Math.pow(progress, 1.8);
+    const progress = Math.min(1, elapsed / ANIMATION_DURATION_MS);
+    const eased = Math.pow(progress, ANIMATION_EASE_POWER);
     const passedDays = this.getPassedDaysCount();
 
     this.activeHighlightCount = Math.min(passedDays, Math.ceil(eased * passedDays));
@@ -397,7 +410,7 @@ export class CanvasEngine {
     if (startRow > endRow || startCol > endCol) return;
 
     this.setWorldTransform(ctx);
-    ctx.fillStyle = ACTIVE_CELL_COLOR;
+    ctx.fillStyle = COLOR_CELL_ACTIVE;
     ctx.beginPath();
 
     for (let row = startRow; row <= endRow; row++) {
@@ -440,20 +453,20 @@ export class CanvasEngine {
     const style = this.calendarStyle;
 
     // Compensate line width so it's constant in screen pixels
-    const lw = 0.6 / this.scale;
+    const lw = OUTLINE_BASE_LINE_WIDTH / this.scale;
 
     const cellIndex = diffDates(this.hoveredDay, startDate, 'day');
     const dayBounds = getDayOutlineBounds(cellIndex, days, gridWidth, style);
-    if (dayBounds) drawOutline(ctx, dayBounds, '#FFFFFF', 2 * lw);
+    if (dayBounds) drawOutline(ctx, dayBounds, COLOR_OUTLINE_DAY, OUTLINE_DAY_LINE_WIDTH_MULTIPLIER * lw);
 
     const yearBounds = getOutlineBounds(startDate, this.hoveredDay, days, gridWidth, 'year', style);
-    if (yearBounds) drawMultiRowOutline(ctx, yearBounds, '#FF6B6B', 3 * lw, 'year');
+    if (yearBounds) drawMultiRowOutline(ctx, yearBounds, COLOR_OUTLINE_YEAR, OUTLINE_GROUP_LINE_WIDTH_MULTIPLIER * lw, 'year');
 
     const monthBounds = getOutlineBounds(startDate, this.hoveredDay, days, gridWidth, 'month', style);
-    if (monthBounds) drawMultiRowOutline(ctx, monthBounds, '#4ECDC4', 3 * lw, 'month');
+    if (monthBounds) drawMultiRowOutline(ctx, monthBounds, COLOR_OUTLINE_MONTH, OUTLINE_GROUP_LINE_WIDTH_MULTIPLIER * lw, 'month');
 
     const weekBounds = getOutlineBounds(startDate, this.hoveredDay, days, gridWidth, 'week', style);
-    if (weekBounds) drawMultiRowOutline(ctx, weekBounds, '#FFE66D', 3 * lw, 'week');
+    if (weekBounds) drawMultiRowOutline(ctx, weekBounds, COLOR_OUTLINE_WEEK, OUTLINE_GROUP_LINE_WIDTH_MULTIPLIER * lw, 'week');
   }
 
   // --- Pointer / interaction ---
@@ -530,8 +543,8 @@ export class CanvasEngine {
     e.preventDefault();
     const previousScale = this.scale;
     const nextScale = Math.min(
-      3,
-      Math.max(0.1, previousScale * (e.deltaY > 0 ? 0.9 : 1.1)),
+      MAX_SCALE,
+      Math.max(MIN_SCALE, previousScale * (e.deltaY > 0 ? ZOOM_OUT_FACTOR : ZOOM_IN_FACTOR)),
     );
     if (nextScale === previousScale) return;
 

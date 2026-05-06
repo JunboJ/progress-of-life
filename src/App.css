@@ -79,7 +79,7 @@
 }
 
 .cell:not([data-index-of-year="-1"]) {
-  background-color: #0b3d91;
+  background-color: var(--color-cell-active);
 }
 
 /*

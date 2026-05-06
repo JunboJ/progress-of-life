@@ -1,3 +1,9 @@
+:root {
+  --color-background: #23272e;
+  --color-cell-active: #0b3d91;
+  --color-cell-inactive: #2d3a4a;
+}
+
 .night-mode-color {
   --background-root: #ffffff;
   --background-table-cell: #232323;

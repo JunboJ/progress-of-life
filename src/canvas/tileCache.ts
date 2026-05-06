@@ -1,5 +1,6 @@
 import { CalendarStyle } from './style';
 import { calculateCalendarDimension } from './utils';
+import { COLOR_BACKGROUND, COLOR_CELL_INACTIVE } from './constants';
 
 export const TILE_SIZE = 512;
 export const MAX_LOD = 4;
@@ -75,9 +76,6 @@ export const createGridLayout = (
 export const pickLODLevel = (scale: number): number => {
   return Math.max(0, Math.min(MAX_LOD, Math.floor(-Math.log2(scale))));
 };
-
-const BACKGROUND_COLOR = '#23272e';
-const INACTIVE_CELL_COLOR = '#2d3a4a';
 
 /**
  * Draw only cells that intersect the given world-space region.
@@ -155,14 +153,14 @@ const buildLODLevel = (layout: GridLayout, level: number): LODData => {
       ctx.scale(scaleFactor, scaleFactor);
       ctx.translate(-logicalLeft, -logicalTop);
 
-      ctx.fillStyle = BACKGROUND_COLOR;
+      ctx.fillStyle = COLOR_BACKGROUND;
       ctx.fillRect(logicalLeft, logicalTop, logicalWidth, logicalHeight);
 
       drawCellsInRegion(
         ctx, layout,
         logicalLeft, logicalTop,
         logicalLeft + logicalWidth, logicalTop + logicalHeight,
-        INACTIVE_CELL_COLOR,
+        COLOR_CELL_INACTIVE,
       );
 
       tiles.set(`${tx},${ty}`, {

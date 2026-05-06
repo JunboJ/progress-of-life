@@ -1,6 +1,7 @@
 import { DateObj, diffDates, addDuration, isAfter, isBefore, startOf, endOf } from '../utils/date';
 import { CalendarStyle } from './style';
 import { calculateCalendarDimension } from './utils';
+import { OUTLINE_CELL_PADDING } from './constants';
 
 export interface OutlineBounds {
   minX: number;
@@ -82,10 +83,10 @@ export const getOutlineBounds = (
   if (startPos.row === endPos.row) {
     // Single row
     bounds.push({
-      minX: startPos.x - 2,
-      minY: startPos.y - 2,
-      maxX: endPos.x + calendarStyle.cellWidth + 2,
-      maxY: endPos.y + calendarStyle.cellHeight + 2,
+      minX: startPos.x - OUTLINE_CELL_PADDING,
+      minY: startPos.y - OUTLINE_CELL_PADDING,
+      maxX: endPos.x + calendarStyle.cellWidth + OUTLINE_CELL_PADDING,
+      maxY: endPos.y + calendarStyle.cellHeight + OUTLINE_CELL_PADDING,
       row: startPos.row,
     });
   } else {
@@ -93,10 +94,10 @@ export const getOutlineBounds = (
     // First row: from startPos to end of row
     const lastCellFirstRow = getCellPosition(startPos.row * dimensions.numberOfCols + dimensions.numberOfCols - 1, dimensions, calendarStyle);
     bounds.push({
-      minX: startPos.x - 2,
-      minY: startPos.y - 2,
-      maxX: lastCellFirstRow.x + calendarStyle.cellWidth + 2,
-      maxY: startPos.y + calendarStyle.cellHeight + 2,
+      minX: startPos.x - OUTLINE_CELL_PADDING,
+      minY: startPos.y - OUTLINE_CELL_PADDING,
+      maxX: lastCellFirstRow.x + calendarStyle.cellWidth + OUTLINE_CELL_PADDING,
+      maxY: startPos.y + calendarStyle.cellHeight + OUTLINE_CELL_PADDING,
       row: startPos.row,
     });
 
@@ -105,10 +106,10 @@ export const getOutlineBounds = (
       const firstCellOfRow = getCellPosition(row * dimensions.numberOfCols, dimensions, calendarStyle);
       const lastCellOfRow = getCellPosition(row * dimensions.numberOfCols + dimensions.numberOfCols - 1, dimensions, calendarStyle);
       bounds.push({
-        minX: firstCellOfRow.x - 2,
-        minY: firstCellOfRow.y - 2,
-        maxX: lastCellOfRow.x + calendarStyle.cellWidth + 2,
-        maxY: firstCellOfRow.y + calendarStyle.cellHeight + 2,
+        minX: firstCellOfRow.x - OUTLINE_CELL_PADDING,
+        minY: firstCellOfRow.y - OUTLINE_CELL_PADDING,
+        maxX: lastCellOfRow.x + calendarStyle.cellWidth + OUTLINE_CELL_PADDING,
+        maxY: firstCellOfRow.y + calendarStyle.cellHeight + OUTLINE_CELL_PADDING,
         row,
       });
     }
@@ -116,10 +117,10 @@ export const getOutlineBounds = (
     // Last row: from start of row to endPos
     const firstCellLastRow = getCellPosition(endPos.row * dimensions.numberOfCols, dimensions, calendarStyle);
     bounds.push({
-      minX: firstCellLastRow.x - 2,
-      minY: endPos.y - 2,
-      maxX: endPos.x + calendarStyle.cellWidth + 2,
-      maxY: endPos.y + calendarStyle.cellHeight + 2,
+      minX: firstCellLastRow.x - OUTLINE_CELL_PADDING,
+      minY: endPos.y - OUTLINE_CELL_PADDING,
+      maxX: endPos.x + calendarStyle.cellWidth + OUTLINE_CELL_PADDING,
+      maxY: endPos.y + calendarStyle.cellHeight + OUTLINE_CELL_PADDING,
       row: endPos.row,
     });
   }
@@ -141,10 +142,10 @@ export const getDayOutlineBounds = (
   const cellPos = getCellPosition(cellIndex, dimensions, calendarStyle);
 
   return {
-    minX: cellPos.x - 2,
-    minY: cellPos.y - 2,
-    maxX: cellPos.x + calendarStyle.cellWidth + 2,
-    maxY: cellPos.y + calendarStyle.cellHeight + 2,
+    minX: cellPos.x - OUTLINE_CELL_PADDING,
+    minY: cellPos.y - OUTLINE_CELL_PADDING,
+    maxX: cellPos.x + calendarStyle.cellWidth + OUTLINE_CELL_PADDING,
+    maxY: cellPos.y + calendarStyle.cellHeight + OUTLINE_CELL_PADDING,
   };
 };
 
