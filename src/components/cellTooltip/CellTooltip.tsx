@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
 import { useTooltipStore } from "../../store/tooltipStore";
 import { calculateTooltipPosition } from "../../utils/tooltipPosition";
-import styles from "./CellTooltip.module.css";
+import { Tooltip } from "../shared/tooltip/Tooltip";
 
-const TOOLTIP_SIZE = { width: 80, height: 45 };
+const TOOLTIP_SIZE = { width: 120, height: 45 };
 
 export const CellTooltip = () => {
 	const ref = useRef<HTMLDivElement>(null);
@@ -21,15 +21,6 @@ export const CellTooltip = () => {
 	}, []);
 
 	return (
-		<div
-			ref={ref}
-			className={`${styles.cellTooltip} ${hidden ? styles.cellTooltipHidden : ""}`}
-			style={{
-				width: TOOLTIP_SIZE.width,
-				height: TOOLTIP_SIZE.height,
-			}}
-		>
-			<span>{content}</span>
-		</div>
+		<Tooltip ref={ref} hidden={hidden} content={content} width={TOOLTIP_SIZE.width} height={TOOLTIP_SIZE.height} />
 	);
 };

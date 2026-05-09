@@ -8,8 +8,10 @@
 
 import dayjs, { Dayjs } from "dayjs";
 import isSameOrAfterPlugin from "dayjs/plugin/isSameOrAfter";
+import isSameOrBeforePlugin from "dayjs/plugin/isSameOrBefore";
 
 dayjs.extend(isSameOrAfterPlugin);
+dayjs.extend(isSameOrBeforePlugin);
 
 /**
  * Opaque date object. Pass it only to functions in this module —
@@ -18,7 +20,7 @@ dayjs.extend(isSameOrAfterPlugin);
 export type DateObj = Dayjs;
 
 /** Units for arithmetic (add) and diff operations. */
-export type DateUnit = "year" | "y" | "month" | "M" | "week" | "w" | "day" | "d";
+export type DateUnit = "year" | "y" | "month" | "M" | "week" | "w" | "day" | "d" | "second" | "s";
 
 /** Units for startOf / endOf boundary operations. */
 export type DateBoundaryUnit = "year" | "month" | "week" | "day";
@@ -42,8 +44,8 @@ export function addDuration(date: DateObj, amount: number, unit: DateUnit): Date
  * Returns the signed difference between two dates in the given `unit`.
  * Positive when `a` is after `b` (mirrors `a.diff(b, unit)`).
  */
-export function diffDates(a: DateObj, b: DateObj, unit: DateUnit): number {
-	return a.diff(b, unit as dayjs.OpUnitType);
+export function diffDates(a: DateObj, b: DateObj, unit: DateUnit, floating?: boolean): number {
+	return a.diff(b, unit as dayjs.OpUnitType, floating);
 }
 
 /** Formats a date to a string using a dayjs-compatible format pattern. */
@@ -69,6 +71,10 @@ export function isSame(a: DateObj, b: DateObj, unit?: DateBoundaryUnit): boolean
 /** Returns true if `a` is the same as, or after, `b`. */
 export function isSameOrAfter(a: DateObj, b: DateObj): boolean {
 	return a.isSameOrAfter(b);
+}
+
+export function isSameOrBefore(a: DateObj, b: DateObj): boolean {
+	return a.isSameOrBefore(b);
 }
 
 /** Returns a date snapped to the start of the given `unit` period. */

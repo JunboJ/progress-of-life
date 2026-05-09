@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { DateObj, formatDate } from "../utils/date";
-import Modal from "./Modal";
+import { DateObj, formatDate } from "../../utils/date";
 import "./SettingsModal.css";
+import { Modal } from "../shared/Modal";
 
 interface SettingsModalProps {
 	lifeSpan: number;
@@ -16,7 +16,7 @@ interface SettingsModalProps {
 	onAutoOpenHandled: () => void;
 }
 
-const SettingsModal = ({
+export const SettingsModal = ({
 	lifeSpan,
 	dob,
 	useTable,
@@ -60,7 +60,7 @@ const SettingsModal = ({
 	return (
 		<>
 			<button className="floating-settings-button" onClick={() => setOpen(true)}>
-				⚙️ Settings
+				Settings
 			</button>
 
 			<Modal open={open} title="App Settings" onClose={close}>
@@ -129,5 +129,3 @@ const SettingsModal = ({
 		</>
 	);
 };
-
-export default SettingsModal;

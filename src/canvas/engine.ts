@@ -5,6 +5,7 @@ import { getDayOutlineBounds, drawOutline, getOutlineBounds, drawMultiRowOutline
 import { createGridLayout, getLODData, pickLODLevel, GridLayout, LODData } from "./tileCache";
 import { useTooltipStore } from "../store/tooltipStore";
 import { useCanvasEngineStore } from "../store/canvasEngineStore";
+import { useDateModalStore } from "../store/dateModalStore";
 import {
 	COLOR_BACKGROUND,
 	COLOR_CELL_ACTIVE,
@@ -57,6 +58,7 @@ export class CanvasEngine {
 	// Interaction
 	private dragging = false;
 	private lastPointer = { x: 0, y: 0 };
+	private pointerDownPos = { x: 0, y: 0 };
 
 	// Animation
 	private animationRunning = false;
@@ -482,7 +484,7 @@ export class CanvasEngine {
 			const currentDate = addDuration(this.config.startDate, cell.cellIndex, "day");
 			this.hoveredDay = currentDate;
 
-			useTooltipStore.getState().showTooltip(clientX, clientY, formatDate(currentDate, "YYYY-MM-DD"));
+			useTooltipStore.getState().showTooltip(clientX, clientY, formatDate(currentDate, "ddd, YYYY-MM-DD"));
 			useCanvasEngineStore.getState().setHoveredDate(currentDate);
 
 			this.dirty.overlay = true;
@@ -494,6 +496,7 @@ export class CanvasEngine {
 		if (e.button !== 0) return;
 		this.dragging = true;
 		this.lastPointer = { x: e.clientX, y: e.clientY };
+		this.pointerDownPos = { x: e.clientX, y: e.clientY };
 		this.container.setPointerCapture(e.pointerId);
 	}
 
@@ -522,8 +525,26 @@ export class CanvasEngine {
 	}
 
 	private onPointerUp(e: PointerEvent): void {
+		const dx = e.clientX - this.pointerDownPos.x;
+		const dy = e.clientY - this.pointerDownPos.y;
+		const isClick = Math.sqrt(dx * dx + dy * dy) < 5;
+
 		this.dragging = false;
 		this.container.releasePointerCapture(e.pointerId);
+
+		if (isClick) {
+			const point = this.toCanvasPoint(e.clientX, e.clientY);
+			const cell = getCalendarCellFromPoint(this.calendarStyle, {
+				numberOfCells: this.config.days,
+				canvasWidth: this.config.gridWidth,
+				pointX: point.x,
+				pointY: point.y,
+			});
+			if (cell) {
+				const date = addDuration(this.config.startDate, cell.cellIndex, "day");
+				useDateModalStore.getState().openModal(formatDate(date, "YYYY-MM-DD"));
+			}
+		}
 	}
 
 	private onWheel(e: WheelEvent): void {

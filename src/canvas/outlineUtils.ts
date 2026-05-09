@@ -31,7 +31,7 @@ const getCellPosition = (
 };
 
 const getCellIndex = (date: DateObj, startDate: DateObj) => {
-	return diffDates(date, startDate, "day");
+	return Math.ceil(diffDates(date, startDate, "day", true));
 };
 
 export const getOutlineBounds = (
@@ -73,7 +73,7 @@ export const getOutlineBounds = (
 	const clampedEndDate = isAfter(groupEndDate, calendarEndDate) ? calendarEndDate : groupEndDate;
 
 	const startIndex = getCellIndex(clampedStartDate, startDate);
-	const endIndex = getCellIndex(clampedEndDate, startDate);
+	const endIndex = getCellIndex(clampedEndDate, startDate) - 1;
 
 	if (startIndex < 0 || startIndex >= numberOfCells) {
 		return null;

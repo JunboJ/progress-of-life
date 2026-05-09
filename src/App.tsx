@@ -1,7 +1,8 @@
 import { useState } from "react";
 import "./App.css";
 import { CellTooltip } from "./components/cellTooltip/CellTooltip";
-import SettingsModal from "./components/SettingsModal";
+import { DateModal } from "./components/dateModal/DateModal";
+import { SettingsModal } from "./components/SettingsModal";
 import { calculateLifeStats } from "./utils/lifeCalculations";
 import { CanvasEngine } from "./canvas/engine";
 
@@ -54,6 +55,7 @@ function App({ engine }: AppProps) {
 	return (
 		<>
 			<CellTooltip />
+			<DateModal />
 			<input
 				type="range"
 				min="1000"

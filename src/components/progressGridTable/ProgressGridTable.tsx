@@ -15,6 +15,9 @@ const cellConfig = {
 	},
 };
 
+/**
+ * @deprecated
+ */
 export const ProgressGridTable = ({
 	startDate,
 	today,

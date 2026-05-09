@@ -9,7 +9,7 @@ interface ModalProps {
 	showCloseButton?: boolean;
 }
 
-const Modal = ({ open, title, onClose, children, showCloseButton = true }: ModalProps) => {
+export const Modal = ({ open, title, onClose, children, showCloseButton = true }: ModalProps) => {
 	if (!open) {
 		return null;
 	}
@@ -30,5 +30,3 @@ const Modal = ({ open, title, onClose, children, showCloseButton = true }: Modal
 		</div>
 	);
 };
-
-export default Modal;
