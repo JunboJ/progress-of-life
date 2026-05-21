@@ -5,7 +5,7 @@ import { getDayOutlineBounds, drawOutline, getOutlineBounds, drawMultiRowOutline
 import { createGridLayout, getLODData, pickLODLevel, GridLayout, LODData } from "./tileCache";
 import { useTooltipStore } from "../store/tooltipStore";
 import { useCanvasEngineStore } from "../store/canvasEngineStore";
-import { useDateModalStore } from "../store/dateModalStore";
+import { DateModalState, useDateModalStore } from "../store/dateModalStore";
 import {
 	COLOR_BACKGROUND,
 	COLOR_CELL_ACTIVE,
@@ -82,6 +82,8 @@ export class CanvasEngine {
 	private zoomAnimStartTime: number | null = null;
 	private zoomAnimFrom = { scale: 1, offsetX: 0, offsetY: 0 };
 	private zoomAnimTo = { scale: 1, offsetX: 0, offsetY: 0 };
+	private zoomToCellIndex: number | null = null;
+	private preZoomLevel: number | null = null;
 
 	// Repaint scheduling
 	private repaintRafId: number | null = null;
@@ -97,6 +99,7 @@ export class CanvasEngine {
 	private boundWheel: (e: WheelEvent) => void;
 	private boundPointerLeave: () => void;
 	private zoomAnimResolve?: () => void;
+	private boundDateModalClose: (state: DateModalState, prevState: DateModalState) => void;
 
 	constructor(container: HTMLElement, config: CanvasEngineConfig) {
 		this.container = container;
@@ -119,6 +122,7 @@ export class CanvasEngine {
 		this.boundPointerUp = this.onPointerUp.bind(this);
 		this.boundWheel = this.onWheel.bind(this);
 		this.boundPointerLeave = this.onPointerLeave.bind(this);
+		this.boundDateModalClose = this.onDateModalClose.bind(this);
 
 		this.updateCalendarStyle();
 	}
@@ -139,6 +143,8 @@ export class CanvasEngine {
 		this.container.addEventListener("pointercancel", this.boundPointerUp);
 		this.container.addEventListener("wheel", this.boundWheel, { passive: false });
 		this.container.addEventListener("pointerleave", this.boundPointerLeave);
+
+		useDateModalStore.subscribe(this.boundDateModalClose);
 
 		this.resizeObserver = new ResizeObserver((entries) => {
 			for (const entry of entries) {
@@ -652,6 +658,8 @@ export class CanvasEngine {
 				pointY: point.y,
 			});
 			if (cell) {
+				this.preZoomLevel = this.scale;
+				this.zoomToCellIndex = cell.cellIndex;
 				const result = await this.zoomToCell(cell.cellIndex, 20);
 
 				if (result) {
@@ -660,7 +668,11 @@ export class CanvasEngine {
 						width: result.width,
 						height: result.height,
 						isActive: result.isCellActive,
+						calendarCellPosition: cell,
 					});
+				} else {
+					this.zoomToCellIndex = null;
+					this.preZoomLevel = null;
 				}
 			}
 		}
@@ -703,5 +715,11 @@ export class CanvasEngine {
 
 		this.dirty.overlay = true;
 		this.scheduleRepaint();
+	}
+
+	private onDateModalClose(state: DateModalState, prevState: DateModalState) {
+		if (!state.open && prevState.open) {
+			this.zoomToCell(this.zoomToCellIndex ?? -1, this.preZoomLevel ?? this.scale);
+		}
 	}
 }
