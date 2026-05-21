@@ -1,6 +1,6 @@
 import { CalendarStyle } from "./style";
 import { calculateCalendarDimension } from "./utils";
-import { COLOR_BACKGROUND, COLOR_CELL_INACTIVE } from "./constants";
+import { COLOR_BACKGROUND, COLOR_CELL_INACTIVE, CELL_BORDER_RADIUS } from "./constants";
 
 export const TILE_SIZE = 512;
 export const MAX_LOD = 4;
@@ -121,7 +121,7 @@ const drawCellsInRegion = (
 			if (rowStart + col >= layout.totalCells) break;
 			const x = layout.computedPaddingLeft + col * layout.colStride;
 			const y = layout.paddingTop + row * layout.rowStride;
-			ctx.rect(x, y, layout.cellWidth, layout.cellHeight);
+			ctx.roundRect(x, y, layout.cellWidth, layout.cellHeight, CELL_BORDER_RADIUS);
 		}
 	}
 

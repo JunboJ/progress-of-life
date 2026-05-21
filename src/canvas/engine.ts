@@ -1,4 +1,4 @@
-import { DateObj, isAfter, diffDates, addDuration, formatDate } from "../utils/date";
+import { DateObj, isAfter, isSameOrBefore, diffDates, addDuration, formatDate } from "../utils/date";
 import { CalendarStyle, CalendarStyle as DefaultCalendarStyle } from "./style";
 import { getCalendarCellFromPoint } from "./utils";
 import { getDayOutlineBounds, drawOutline, getOutlineBounds, drawMultiRowOutline } from "./outlineUtils";
@@ -9,6 +9,7 @@ import { useDateModalStore } from "../store/dateModalStore";
 import {
 	COLOR_BACKGROUND,
 	COLOR_CELL_ACTIVE,
+	COLOR_CELL_INACTIVE,
 	COLOR_OUTLINE_DAY,
 	COLOR_OUTLINE_YEAR,
 	COLOR_OUTLINE_MONTH,
@@ -23,6 +24,11 @@ import {
 	ZOOM_OUT_FACTOR,
 	ANIMATION_DURATION_MS,
 	ANIMATION_EASE_POWER,
+	ZOOM_TO_CELL_SCALE,
+	ZOOM_ANIMATION_DURATION_MS,
+	ZOOM_ANIMATION_EASE_POWER,
+	CELL_BORDER_RADIUS,
+	STATIC_DIRECT_DRAW_THRESHOLD,
 } from "./constants";
 
 export interface CanvasEngineConfig {
@@ -71,6 +77,12 @@ export class CanvasEngine {
 	private hoverRafId: number | null = null;
 	private pendingPointer: { x: number; y: number } | null = null;
 
+	// Zoom animation
+	private zoomAnimRunning = false;
+	private zoomAnimStartTime: number | null = null;
+	private zoomAnimFrom = { scale: 1, offsetX: 0, offsetY: 0 };
+	private zoomAnimTo = { scale: 1, offsetX: 0, offsetY: 0 };
+
 	// Repaint scheduling
 	private repaintRafId: number | null = null;
 	private dirty = { static: true, active: true, overlay: true };
@@ -84,6 +96,7 @@ export class CanvasEngine {
 	private boundPointerUp: (e: PointerEvent) => void;
 	private boundWheel: (e: WheelEvent) => void;
 	private boundPointerLeave: () => void;
+	private zoomAnimResolve?: () => void;
 
 	constructor(container: HTMLElement, config: CanvasEngineConfig) {
 		this.container = container;
@@ -239,9 +252,13 @@ export class CanvasEngine {
 				this.tickAnimation(timestamp);
 			}
 
+			if (this.zoomAnimRunning) {
+				this.tickZoomAnimation(timestamp);
+			}
+
 			this.flushRepaint();
 
-			if (this.animationRunning) {
+			if (this.animationRunning || this.zoomAnimRunning) {
 				this.scheduleRepaint();
 			}
 		});
@@ -299,6 +316,12 @@ export class CanvasEngine {
 
 		this.clearCanvas(this.staticCanvas);
 
+		// Above the threshold, draw directly in world space for crisp vector rounded corners
+		if (this.scale > STATIC_DIRECT_DRAW_THRESHOLD) {
+			this.repaintStaticDirect(ctx);
+			return;
+		}
+
 		const level = pickLODLevel(this.scale);
 		const lod = this.lodData[level];
 		if (!lod) return;
@@ -332,6 +355,38 @@ export class CanvasEngine {
 	}
 
 	// --- Active layer ---
+
+	private repaintStaticDirect(ctx: CanvasRenderingContext2D): void {
+		const layout = this.gridLayout!;
+		const visible = this.getVisibleWorldRect();
+
+		const startCol = Math.max(0, Math.floor((visible.left - layout.computedPaddingLeft) / layout.colStride));
+		const endCol = Math.min(
+			layout.numberOfCols - 1,
+			Math.ceil((visible.right - layout.computedPaddingLeft) / layout.colStride)
+		);
+		const totalRows = Math.ceil(layout.totalCells / layout.numberOfCols);
+		const startRow = Math.max(0, Math.floor((visible.top - layout.paddingTop) / layout.rowStride));
+		const endRow = Math.min(totalRows - 1, Math.ceil((visible.bottom - layout.paddingTop) / layout.rowStride));
+
+		if (startRow > endRow || startCol > endCol) return;
+
+		this.setWorldTransform(ctx);
+		ctx.fillStyle = COLOR_CELL_INACTIVE;
+		ctx.beginPath();
+
+		for (let row = startRow; row <= endRow; row++) {
+			for (let col = startCol; col <= endCol; col++) {
+				const cellIndex = row * layout.numberOfCols + col;
+				if (cellIndex >= layout.totalCells) break;
+				const x = layout.computedPaddingLeft + col * layout.colStride;
+				const y = layout.paddingTop + row * layout.rowStride;
+				ctx.roundRect(x, y, layout.cellWidth, layout.cellHeight, CELL_BORDER_RADIUS);
+			}
+		}
+
+		ctx.fill();
+	}
 
 	private startActiveLayer(): void {
 		const passedDays = this.getPassedDaysCount();
@@ -400,7 +455,7 @@ export class CanvasEngine {
 				if (cellIndex >= this.activeHighlightCount) break;
 				const x = layout.computedPaddingLeft + col * layout.colStride;
 				const y = layout.paddingTop + row * layout.rowStride;
-				ctx.rect(x, y, layout.cellWidth, layout.cellHeight);
+				ctx.roundRect(x, y, layout.cellWidth, layout.cellHeight, CELL_BORDER_RADIUS);
 			}
 		}
 
@@ -410,6 +465,62 @@ export class CanvasEngine {
 	private cancelAnimation(): void {
 		this.animationRunning = false;
 		this.animationStartTime = null;
+	}
+
+	private tickZoomAnimation(timestamp: number): void {
+		if (!this.zoomAnimStartTime) this.zoomAnimStartTime = timestamp;
+		const elapsed = timestamp - this.zoomAnimStartTime;
+		const progress = Math.min(1, elapsed / ZOOM_ANIMATION_DURATION_MS);
+		const eased = 1 - Math.pow(1 - progress, ZOOM_ANIMATION_EASE_POWER);
+
+		this.scale = this.zoomAnimFrom.scale + (this.zoomAnimTo.scale - this.zoomAnimFrom.scale) * eased;
+		this.offset.x = this.zoomAnimFrom.offsetX + (this.zoomAnimTo.offsetX - this.zoomAnimFrom.offsetX) * eased;
+		this.offset.y = this.zoomAnimFrom.offsetY + (this.zoomAnimTo.offsetY - this.zoomAnimFrom.offsetY) * eased;
+
+		this.dirty.static = true;
+		this.dirty.active = true;
+		this.dirty.overlay = true;
+
+		if (progress >= 1) {
+			this.zoomAnimRunning = false;
+			this.zoomAnimStartTime = null;
+			this.zoomAnimResolve?.();
+			this.zoomAnimResolve = undefined;
+		}
+	}
+
+	zoomToCell(cellIndex: number, zoomLevel?: number) {
+		const bounds = getDayOutlineBounds(cellIndex, this.config.days, this.config.gridWidth, this.calendarStyle);
+		if (!bounds) return;
+
+		const resolvedZoomLevel = zoomLevel ?? ZOOM_TO_CELL_SCALE;
+		const worldCenterX = (bounds.minX + bounds.maxX) / 2;
+		const worldCenterY = (bounds.minY + bounds.maxY) / 2;
+		const targetScale = Math.min(resolvedZoomLevel);
+
+		this.zoomAnimFrom = { scale: this.scale, offsetX: this.offset.x, offsetY: this.offset.y };
+		this.zoomAnimTo = {
+			scale: targetScale,
+			offsetX: this.viewportWidth / 2 - worldCenterX * targetScale,
+			offsetY: this.viewportHeight / 2 - worldCenterY * targetScale,
+		};
+
+		this.zoomAnimRunning = true;
+		this.zoomAnimStartTime = null;
+		this.scheduleRepaint();
+
+		return new Promise<{ width: number; height: number; isCellActive: boolean }>((resolve) => {
+			const screenW = this.calendarStyle.cellWidth * resolvedZoomLevel;
+			const screenH = this.calendarStyle.cellHeight * resolvedZoomLevel;
+			this.zoomAnimResolve = () =>
+				resolve({ width: screenW, height: screenH, isCellActive: this.isCellActive(cellIndex) });
+			this.scheduleRepaint();
+		});
+	}
+
+	isCellActive(cellIndex: number): boolean {
+		const date = addDuration(this.config.startDate, cellIndex, "day");
+		return isSameOrBefore(date, this.config.today);
 	}
 
 	private getPassedDaysCount(): number {
@@ -524,7 +635,7 @@ export class CanvasEngine {
 		}
 	}
 
-	private onPointerUp(e: PointerEvent): void {
+	private async onPointerUp(e: PointerEvent) {
 		const dx = e.clientX - this.pointerDownPos.x;
 		const dy = e.clientY - this.pointerDownPos.y;
 		const isClick = Math.sqrt(dx * dx + dy * dy) < 5;
@@ -541,8 +652,16 @@ export class CanvasEngine {
 				pointY: point.y,
 			});
 			if (cell) {
-				const date = addDuration(this.config.startDate, cell.cellIndex, "day");
-				useDateModalStore.getState().openModal(formatDate(date, "YYYY-MM-DD"));
+				const result = await this.zoomToCell(cell.cellIndex, 20);
+
+				if (result) {
+					const date = addDuration(this.config.startDate, cell.cellIndex, "day");
+					useDateModalStore.getState().openModal(formatDate(date, "YYYY-MM-DD"), {
+						width: result.width,
+						height: result.height,
+						isActive: result.isCellActive,
+					});
+				}
 			}
 		}
 	}

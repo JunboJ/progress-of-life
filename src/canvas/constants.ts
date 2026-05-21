@@ -29,3 +29,14 @@ export const ZOOM_OUT_FACTOR = 0.9;
 // ─── Animation ────────────────────────────────────────────────────────────────
 export const ANIMATION_DURATION_MS = 5000;
 export const ANIMATION_EASE_POWER = 1.8;
+
+// ─── Zoom-to-cell ─────────────────────────────────────────────────────────────
+export const ZOOM_TO_CELL_SCALE = 2;
+export const ZOOM_ANIMATION_DURATION_MS = 600;
+export const ZOOM_ANIMATION_EASE_POWER = 3;
+
+// ─── Cell geometry ────────────────────────────────────────────────────────────
+/** Corner radius for cells in world pixels. At ZOOM_TO_CELL_SCALE (2×) this equals 8 CSS pixels, matching the cell modal border-radius. */
+export const CELL_BORDER_RADIUS = 4;
+/** Above this scale, the static layer switches from tile blitting to direct vector drawing for crisp rounded corners. */
+export const STATIC_DIRECT_DRAW_THRESHOLD = 1.5;
