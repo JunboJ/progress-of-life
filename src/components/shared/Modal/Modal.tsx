@@ -12,8 +12,6 @@ interface ModalProps {
 	backgroundColor?: string;
 	textColor?: string;
 	variant?: "default" | "cell";
-	x?: number;
-	y?: number;
 }
 
 export const Modal = ({
@@ -27,8 +25,6 @@ export const Modal = ({
 	backgroundColor = "#ffffff",
 	textColor,
 	variant = "default",
-	x,
-	y,
 }: ModalProps) => {
 	if (!open) {
 		return null;
@@ -46,9 +42,6 @@ export const Modal = ({
 						height,
 						backgroundColor,
 						color: resolvedTextColor,
-						...(x !== undefined && y !== undefined
-							? { position: "fixed", left: x, top: y, transform: "none" }
-							: {}),
 					}}
 				>
 					{title ? <div className="modal-cell-title">{title}</div> : null}

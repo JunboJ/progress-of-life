@@ -1,0 +1,35 @@
+.date-modal-date {
+    font-size: 1rem;
+    font-weight: 700;
+    opacity: 0.9;
+}
+
+.data-modal-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 18px;
+}
+
+.date-modal-meta {
+    font-size: 0.75rem;
+    font-weight: 400;
+    opacity: 0.6;
+    margin: 0 0 10px 0;
+}
+
+.date-modal-textarea {
+    width: 100%;
+    flex: 1;
+    resize: none;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: inherit;
+    font: inherit;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    box-sizing: border-box;
+}

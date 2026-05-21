@@ -668,6 +668,7 @@ export class CanvasEngine {
 						width: result.width,
 						height: result.height,
 						isActive: result.isCellActive,
+						startDate: formatDate(this.config.startDate, "YYYY-MM-DD"),
 						calendarCellPosition: cell,
 					});
 				} else {

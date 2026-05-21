@@ -10,8 +10,6 @@
 
 .modal-overlay--cell {
 	background: transparent;
-	align-items: flex-start;
-	justify-content: flex-start;
 }
 
 .modal-content {
@@ -25,10 +23,21 @@
 }
 
 .modal-content--cell {
-	border-radius: 8px;
-	padding: 8px 10px;
+	border-radius: 80px;
+	padding: 4rem;
 	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-	gap: 4px;
+	gap: 8px;
+	animation: cell-modal-fade-in 0.3s ease both;
+}
+
+@keyframes cell-modal-fade-in {
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
+	}
 }
 
 .modal-cell-title {
