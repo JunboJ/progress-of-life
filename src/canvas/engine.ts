@@ -1,7 +1,18 @@
-import { DateObj, isAfter, isSameOrBefore, diffDates, addDuration, formatDate } from "../utils/date";
+import {
+	DateObj,
+	isAfter,
+	isBefore,
+	isSame,
+	isSameOrBefore,
+	diffDates,
+	addDuration,
+	formatDate,
+	startOf,
+	endOf,
+} from "../utils/date";
 import { CalendarStyle, CalendarStyle as DefaultCalendarStyle } from "./style";
-import { getCalendarCellFromPoint } from "./utils";
-import { getDayOutlineBounds, drawOutline, getOutlineBounds, drawMultiRowOutline } from "./outlineUtils";
+import { getCalendarCellFromPoint, CalendarCellPosition } from "./utils";
+import { getDayOutlineBounds, drawOutline } from "./outlineUtils";
 import { createGridLayout, getLODData, pickLODLevel, GridLayout, LODData } from "./tileCache";
 import { useTooltipStore } from "../store/tooltipStore";
 import { useCanvasEngineStore } from "../store/canvasEngineStore";
@@ -11,12 +22,8 @@ import {
 	COLOR_CELL_ACTIVE,
 	COLOR_CELL_INACTIVE,
 	COLOR_OUTLINE_DAY,
-	COLOR_OUTLINE_YEAR,
-	COLOR_OUTLINE_MONTH,
-	COLOR_OUTLINE_WEEK,
 	OUTLINE_BASE_LINE_WIDTH,
 	OUTLINE_DAY_LINE_WIDTH_MULTIPLIER,
-	OUTLINE_GROUP_LINE_WIDTH_MULTIPLIER,
 	INITIAL_SCALE,
 	MIN_SCALE,
 	MAX_SCALE,
@@ -29,7 +36,40 @@ import {
 	ZOOM_ANIMATION_EASE_POWER,
 	CELL_BORDER_RADIUS,
 	STATIC_DIRECT_DRAW_THRESHOLD,
+	DOUBLE_CLICK_DELAY_MS,
+	DOUBLE_CLICK_DISTANCE,
+	VIEW_FIT_MARGIN,
+	VIEW_MAX_LEVEL,
 } from "./constants";
+
+/**
+ * A window onto the life grid. Level 0 is the whole life, 1 a year, 2 a month, 3 a week.
+ * `startIndex` is the day offset from the life's start date; `days` is the number of cells shown.
+ */
+interface ViewState {
+	level: number;
+	startIndex: number;
+	days: number;
+	gridWidth: number;
+	label: string;
+}
+
+const WHOLE_LIFE_LABEL = "Whole life";
+
+/** Label for a zoomed-in view: "2026", "2026 October" or "2026 October Week 2". */
+const getViewLabel = (date: DateObj, level: number): string => {
+	if (level === 1) return formatDate(date, "YYYY");
+	if (level === 2) return formatDate(date, "YYYY MMMM");
+
+	// Week number within the month, counted from the week containing the 1st
+	const weekStart = startOf(date, "week");
+	const dayOfMonth = Number(formatDate(weekStart, "D"));
+	const firstWeekday = Number(formatDate(startOf(weekStart, "month"), "d"));
+	const weekOfMonth = Math.ceil((dayOfMonth + firstWeekday) / 7);
+	return `${formatDate(weekStart, "YYYY MMMM")} Week ${weekOfMonth}`;
+};
+
+const VIEW_LEVEL_UNITS = [null, "year", "month", "week"] as const;
 
 export interface CanvasEngineConfig {
 	days: number;
@@ -65,6 +105,18 @@ export class CanvasEngine {
 	private dragging = false;
 	private lastPointer = { x: 0, y: 0 };
 	private pointerDownPos = { x: 0, y: 0 };
+	private lastClientPos: { x: number; y: number } | null = null;
+	private pendingClick: {
+		timer: number;
+		x: number;
+		y: number;
+		cell: CalendarCellPosition | null;
+	} | null = null;
+
+	// Grid view (whole life -> year -> month -> week)
+	private view: ViewState = { level: 0, startIndex: 0, days: 0, gridWidth: 0, label: WHOLE_LIFE_LABEL };
+	private viewLabelEl: HTMLDivElement;
+	private viewStack: ViewState[] = [];
 
 	// Animation
 	private animationRunning = false;
@@ -72,7 +124,6 @@ export class CanvasEngine {
 	private activeHighlightCount = 0;
 
 	// Hover
-	private hoveredDay: DateObj | null = null;
 	private hoveredCellIndex: number | null = null;
 	private hoverRafId: number | null = null;
 	private pendingPointer: { x: number; y: number } | null = null;
@@ -104,6 +155,13 @@ export class CanvasEngine {
 	constructor(container: HTMLElement, config: CanvasEngineConfig) {
 		this.container = container;
 		this.config = { ...config };
+		this.view = {
+			level: 0,
+			startIndex: 0,
+			days: config.days,
+			gridWidth: config.gridWidth,
+			label: WHOLE_LIFE_LABEL,
+		};
 
 		container.style.overflow = "hidden";
 		container.style.touchAction = "none";
@@ -116,6 +174,9 @@ export class CanvasEngine {
 		container.appendChild(this.staticCanvas);
 		container.appendChild(this.activeCanvas);
 		container.appendChild(this.overlayCanvas);
+
+		this.viewLabelEl = this.createViewLabel();
+		container.appendChild(this.viewLabelEl);
 
 		this.boundPointerDown = this.onPointerDown.bind(this);
 		this.boundPointerMove = this.onPointerMove.bind(this);
@@ -134,6 +195,20 @@ export class CanvasEngine {
 		canvas.style.left = "0";
 		canvas.style.pointerEvents = "none";
 		return canvas;
+	}
+
+	private createViewLabel(): HTMLDivElement {
+		const el = document.createElement("div");
+		el.textContent = this.view.label;
+		el.style.position = "absolute";
+		el.style.top = "16px";
+		el.style.left = "16px";
+		el.style.pointerEvents = "none";
+		el.style.userSelect = "none";
+		el.style.color = "#e6edf3";
+		el.style.font = "600 20px system-ui, sans-serif";
+		el.style.textShadow = "0 1px 4px rgba(0, 0, 0, 0.6)";
+		return el;
 	}
 
 	mount(): void {
@@ -166,6 +241,10 @@ export class CanvasEngine {
 		this.container.removeEventListener("pointerleave", this.boundPointerLeave);
 		this.resizeObserver?.disconnect();
 		this.cancelAnimation();
+		if (this.pendingClick) {
+			window.clearTimeout(this.pendingClick.timer);
+			this.pendingClick = null;
+		}
 		if (this.hoverRafId !== null) cancelAnimationFrame(this.hoverRafId);
 		if (this.repaintRafId !== null) cancelAnimationFrame(this.repaintRafId);
 	}
@@ -176,10 +255,18 @@ export class CanvasEngine {
 
 		const styleChanged = prev.collapseGridGap !== this.config.collapseGridGap;
 		const structureChanged =
-			prev.days !== this.config.days || prev.gridWidth !== this.config.gridWidth || styleChanged;
+			prev.days !== this.config.days ||
+			prev.gridWidth !== this.config.gridWidth ||
+			!isSame(prev.startDate, this.config.startDate, "day") ||
+			styleChanged;
 
 		if (styleChanged) this.updateCalendarStyle();
-		if (structureChanged) this.rebuildLayout();
+		if (structureChanged) {
+			const wasSubView = this.view.level > 0;
+			this.resetView();
+			this.rebuildLayout();
+			if (wasSubView) this.centerCanvas();
+		}
 		this.cancelAnimation();
 		this.startActiveLayer();
 		this.markAllDirty();
@@ -202,11 +289,95 @@ export class CanvasEngine {
 		};
 	}
 
+	private resetView(): void {
+		this.viewStack = [];
+		this.view = {
+			level: 0,
+			startIndex: 0,
+			days: this.config.days,
+			gridWidth: this.config.gridWidth,
+			label: WHOLE_LIFE_LABEL,
+		};
+		this.viewLabelEl.textContent = WHOLE_LIFE_LABEL;
+		this.hoveredCellIndex = null;
+	}
+
+	/** Grid width for a sub-view, chosen so the few cells shown fill the viewport nicely. */
+	private computeSubViewGridWidth(level: number, days: number): number {
+		const s = this.calendarStyle;
+		const aspect = this.viewportHeight > 0 ? this.viewportWidth / this.viewportHeight : 1;
+		const desiredCols = level === 1 ? Math.ceil(Math.sqrt(days * aspect)) : 7;
+		const cols = Math.max(1, Math.min(days, desiredCols));
+		return s.paddingLeft + s.paddingRight + s.cellGap + cols * (s.cellWidth + s.cellGap);
+	}
+
 	private rebuildLayout(): void {
-		this.gridLayout = createGridLayout(this.config.days, this.config.gridWidth, this.calendarStyle);
-		if (this.gridLayout) {
+		const v = this.view;
+		if (v.level === 0) {
+			v.startIndex = 0;
+			v.days = this.config.days;
+			v.gridWidth = this.config.gridWidth;
+		} else {
+			v.gridWidth = this.computeSubViewGridWidth(v.level, v.days);
+		}
+
+		this.gridLayout = createGridLayout(v.days, v.gridWidth, this.calendarStyle);
+		// Sub-views have few cells and are always drawn directly; LOD tiles are only for the full grid.
+		if (this.gridLayout && v.level === 0) {
 			this.lodData = getLODData(this.gridLayout);
 		}
+	}
+
+	private getViewStartDate(): DateObj {
+		return addDuration(this.config.startDate, this.view.startIndex, "day");
+	}
+
+	/** Number of highlighted (passed) cells within the current view. */
+	private getViewActiveCount(): number {
+		return Math.max(0, Math.min(this.view.days, this.activeHighlightCount - this.view.startIndex));
+	}
+
+	private setView(next: ViewState): void {
+		this.view = next;
+		this.viewLabelEl.textContent = next.label;
+		this.hoveredCellIndex = null;
+		this.rebuildLayout();
+		this.centerCanvas();
+		this.markAllDirty();
+
+		if (this.lastClientPos) {
+			this.updateHover(this.lastClientPos.x, this.lastClientPos.y);
+		}
+	}
+
+	private zoomInView(cellIndex: number): void {
+		if (this.view.level >= VIEW_MAX_LEVEL) return;
+
+		const nextLevel = this.view.level + 1;
+		const unit = VIEW_LEVEL_UNITS[nextLevel];
+		if (!unit) return;
+
+		const rootStart = startOf(this.config.startDate, "day");
+		const rootEnd = startOf(addDuration(this.config.startDate, this.config.days - 1, "day"), "day");
+		const date = addDuration(this.getViewStartDate(), cellIndex, "day");
+
+		let groupStart = startOf(date, unit);
+		let groupEnd = startOf(endOf(date, unit), "day");
+		if (isBefore(groupStart, rootStart)) groupStart = rootStart;
+		if (isAfter(groupEnd, rootEnd)) groupEnd = rootEnd;
+
+		const startIndex = Math.round(diffDates(groupStart, rootStart, "day", true));
+		const days = Math.round(diffDates(groupEnd, groupStart, "day", true)) + 1;
+		if (days <= 0) return;
+
+		this.viewStack.push(this.view);
+		this.setView({ level: nextLevel, startIndex, days, gridWidth: 0, label: getViewLabel(date, nextLevel) });
+	}
+
+	private zoomOutView(): void {
+		const previous = this.viewStack.pop();
+		if (!previous) return;
+		this.setView(previous);
 	}
 
 	private handleResize(width: number, height: number): void {
@@ -233,7 +404,15 @@ export class CanvasEngine {
 
 	private centerCanvas(): void {
 		if (!this.gridLayout) return;
-		this.scale = INITIAL_SCALE;
+		if (this.view.level === 0) {
+			this.scale = INITIAL_SCALE;
+		} else {
+			const fit = Math.min(
+				(this.viewportWidth * VIEW_FIT_MARGIN) / this.gridLayout.canvasWidth,
+				(this.viewportHeight * VIEW_FIT_MARGIN) / this.gridLayout.canvasHeight
+			);
+			this.scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, fit));
+		}
 		this.offset = {
 			x: (this.viewportWidth - this.gridLayout.canvasWidth * this.scale) / 2,
 			y: (this.viewportHeight - this.gridLayout.canvasHeight * this.scale) / 2,
@@ -322,8 +501,8 @@ export class CanvasEngine {
 
 		this.clearCanvas(this.staticCanvas);
 
-		// Above the threshold, draw directly in world space for crisp vector rounded corners
-		if (this.scale > STATIC_DIRECT_DRAW_THRESHOLD) {
+		// Above the threshold (or in a sub-view), draw directly in world space for crisp vector rounded corners
+		if (this.view.level > 0 || this.scale > STATIC_DIRECT_DRAW_THRESHOLD) {
 			this.repaintStaticDirect(ctx);
 			return;
 		}
@@ -433,7 +612,8 @@ export class CanvasEngine {
 
 		this.clearCanvas(this.activeCanvas);
 
-		if (this.activeHighlightCount <= 0) return;
+		const activeCount = this.getViewActiveCount();
+		if (activeCount <= 0) return;
 
 		const layout = this.gridLayout;
 		const visible = this.getVisibleWorldRect();
@@ -444,7 +624,7 @@ export class CanvasEngine {
 			Math.ceil((visible.right - layout.computedPaddingLeft) / layout.colStride)
 		);
 		const startRow = Math.max(0, Math.floor((visible.top - layout.paddingTop) / layout.rowStride));
-		const maxActiveRow = Math.floor((this.activeHighlightCount - 1) / layout.numberOfCols);
+		const maxActiveRow = Math.floor((activeCount - 1) / layout.numberOfCols);
 		const visibleEndRow = Math.ceil((visible.bottom - layout.paddingTop) / layout.rowStride);
 		const endRow = Math.min(maxActiveRow, visibleEndRow);
 
@@ -458,7 +638,7 @@ export class CanvasEngine {
 			const rowStart = row * layout.numberOfCols;
 			for (let col = startCol; col <= endCol; col++) {
 				const cellIndex = rowStart + col;
-				if (cellIndex >= this.activeHighlightCount) break;
+				if (cellIndex >= activeCount) break;
 				const x = layout.computedPaddingLeft + col * layout.colStride;
 				const y = layout.paddingTop + row * layout.rowStride;
 				ctx.roundRect(x, y, layout.cellWidth, layout.cellHeight, CELL_BORDER_RADIUS);
@@ -496,7 +676,7 @@ export class CanvasEngine {
 	}
 
 	zoomToCell(cellIndex: number, zoomLevel?: number) {
-		const bounds = getDayOutlineBounds(cellIndex, this.config.days, this.config.gridWidth, this.calendarStyle);
+		const bounds = getDayOutlineBounds(cellIndex, this.view.days, this.view.gridWidth, this.calendarStyle);
 		if (!bounds) return;
 
 		const resolvedZoomLevel = zoomLevel ?? ZOOM_TO_CELL_SCALE;
@@ -525,7 +705,7 @@ export class CanvasEngine {
 	}
 
 	isCellActive(cellIndex: number): boolean {
-		const date = addDuration(this.config.startDate, cellIndex, "day");
+		const date = addDuration(this.getViewStartDate(), cellIndex, "day");
 		return isSameOrBefore(date, this.config.today);
 	}
 
@@ -542,37 +722,20 @@ export class CanvasEngine {
 
 		this.clearCanvas(this.overlayCanvas);
 
-		if (!this.hoveredDay) return;
+		if (this.hoveredCellIndex === null) return;
 
 		this.setWorldTransform(ctx);
-
-		const { startDate, days, gridWidth } = this.config;
-		const style = this.calendarStyle;
 
 		// Compensate line width so it's constant in screen pixels
 		const lw = OUTLINE_BASE_LINE_WIDTH / this.scale;
 
-		const cellIndex = diffDates(this.hoveredDay, startDate, "day");
-		const dayBounds = getDayOutlineBounds(cellIndex, days, gridWidth, style);
+		const dayBounds = getDayOutlineBounds(
+			this.hoveredCellIndex,
+			this.view.days,
+			this.view.gridWidth,
+			this.calendarStyle
+		);
 		if (dayBounds) drawOutline(ctx, dayBounds, COLOR_OUTLINE_DAY, OUTLINE_DAY_LINE_WIDTH_MULTIPLIER * lw);
-
-		const yearBounds = getOutlineBounds(startDate, this.hoveredDay, days, gridWidth, "year", style);
-		if (yearBounds)
-			drawMultiRowOutline(ctx, yearBounds, COLOR_OUTLINE_YEAR, OUTLINE_GROUP_LINE_WIDTH_MULTIPLIER * lw, "year");
-
-		const monthBounds = getOutlineBounds(startDate, this.hoveredDay, days, gridWidth, "month", style);
-		if (monthBounds)
-			drawMultiRowOutline(
-				ctx,
-				monthBounds,
-				COLOR_OUTLINE_MONTH,
-				OUTLINE_GROUP_LINE_WIDTH_MULTIPLIER * lw,
-				"month"
-			);
-
-		const weekBounds = getOutlineBounds(startDate, this.hoveredDay, days, gridWidth, "week", style);
-		if (weekBounds)
-			drawMultiRowOutline(ctx, weekBounds, COLOR_OUTLINE_WEEK, OUTLINE_GROUP_LINE_WIDTH_MULTIPLIER * lw, "week");
 	}
 
 	// --- Pointer / interaction ---
@@ -585,21 +748,24 @@ export class CanvasEngine {
 		};
 	}
 
+	private getCellAtPoint(pointX: number, pointY: number): CalendarCellPosition | null {
+		return getCalendarCellFromPoint(this.calendarStyle, {
+			numberOfCells: this.view.days,
+			canvasWidth: this.view.gridWidth,
+			pointX,
+			pointY,
+		});
+	}
+
 	private updateHover(clientX: number, clientY: number): void {
 		const point = this.toCanvasPoint(clientX, clientY);
-		const cell = getCalendarCellFromPoint(this.calendarStyle, {
-			numberOfCells: this.config.days,
-			canvasWidth: this.config.gridWidth,
-			pointX: point.x,
-			pointY: point.y,
-		});
+		const cell = this.getCellAtPoint(point.x, point.y);
 
 		if (cell) {
 			if (this.hoveredCellIndex === cell.cellIndex) return;
 
 			this.hoveredCellIndex = cell.cellIndex;
-			const currentDate = addDuration(this.config.startDate, cell.cellIndex, "day");
-			this.hoveredDay = currentDate;
+			const currentDate = addDuration(this.getViewStartDate(), cell.cellIndex, "day");
 
 			useTooltipStore.getState().showTooltip(clientX, clientY, formatDate(currentDate, "ddd, YYYY-MM-DD"));
 			useCanvasEngineStore.getState().setHoveredDate(currentDate);
@@ -618,6 +784,7 @@ export class CanvasEngine {
 	}
 
 	private onPointerMove(e: PointerEvent): void {
+		this.lastClientPos = { x: e.clientX, y: e.clientY };
 		if (this.dragging) {
 			const dx = e.clientX - this.lastPointer.x;
 			const dy = e.clientY - this.lastPointer.y;
@@ -649,33 +816,59 @@ export class CanvasEngine {
 		this.dragging = false;
 		this.container.releasePointerCapture(e.pointerId);
 
-		if (isClick) {
-			const point = this.toCanvasPoint(e.clientX, e.clientY);
-			const cell = getCalendarCellFromPoint(this.calendarStyle, {
-				numberOfCells: this.config.days,
-				canvasWidth: this.config.gridWidth,
-				pointX: point.x,
-				pointY: point.y,
-			});
-			if (cell) {
-				this.preZoomLevel = this.scale;
-				this.zoomToCellIndex = cell.cellIndex;
-				const result = await this.zoomToCell(cell.cellIndex, 20);
+		if (!isClick) return;
 
-				if (result) {
-					const date = addDuration(this.config.startDate, cell.cellIndex, "day");
-					useDateModalStore.getState().openModal(formatDate(date, "YYYY-MM-DD"), {
-						width: result.width,
-						height: result.height,
-						isActive: result.isCellActive,
-						startDate: formatDate(this.config.startDate, "YYYY-MM-DD"),
-						calendarCellPosition: cell,
-					});
-				} else {
-					this.zoomToCellIndex = null;
-					this.preZoomLevel = null;
-				}
+		// A second click near the first one is a double click: open the day editor.
+		// Otherwise the click is held back briefly so it can't be mistaken for half a double click.
+		if (this.pendingClick) {
+			const prev = this.pendingClick;
+			window.clearTimeout(prev.timer);
+			this.pendingClick = null;
+
+			const near = Math.hypot(e.clientX - prev.x, e.clientY - prev.y) < DOUBLE_CLICK_DISTANCE;
+			if (near) {
+				if (prev.cell) await this.openDayEditor(prev.cell);
+				return;
 			}
+			this.handleSingleClick(prev.cell);
+		}
+
+		const point = this.toCanvasPoint(e.clientX, e.clientY);
+		const cell = this.getCellAtPoint(point.x, point.y);
+		this.pendingClick = {
+			x: e.clientX,
+			y: e.clientY,
+			cell,
+			timer: window.setTimeout(() => {
+				this.pendingClick = null;
+				this.handleSingleClick(cell);
+			}, DOUBLE_CLICK_DELAY_MS),
+		};
+	}
+
+	/** Single click on a cell zooms in one level; click outside the cells zooms out one level. */
+	private handleSingleClick(cell: CalendarCellPosition | null): void {
+		if (cell) this.zoomInView(cell.cellIndex);
+		else this.zoomOutView();
+	}
+
+	private async openDayEditor(cell: CalendarCellPosition) {
+		this.preZoomLevel = this.scale;
+		this.zoomToCellIndex = cell.cellIndex;
+		const result = await this.zoomToCell(cell.cellIndex, 20);
+
+		if (result) {
+			const date = addDuration(this.getViewStartDate(), cell.cellIndex, "day");
+			useDateModalStore.getState().openModal(formatDate(date, "YYYY-MM-DD"), {
+				width: result.width,
+				height: result.height,
+				isActive: result.isCellActive,
+				startDate: formatDate(this.config.startDate, "YYYY-MM-DD"),
+				calendarCellPosition: cell,
+			});
+		} else {
+			this.zoomToCellIndex = null;
+			this.preZoomLevel = null;
 		}
 	}
 
@@ -709,7 +902,6 @@ export class CanvasEngine {
 		}
 		this.pendingPointer = null;
 		this.hoveredCellIndex = null;
-		this.hoveredDay = null;
 
 		useTooltipStore.getState().setHidden(true);
 		useCanvasEngineStore.getState().setHoveredDate(null);

@@ -26,6 +26,15 @@ export const MAX_SCALE = 3;
 export const ZOOM_IN_FACTOR = 1.1;
 export const ZOOM_OUT_FACTOR = 0.9;
 
+// ─── Grid view levels (whole life → year → month → week) ──────────────────────
+export const VIEW_MAX_LEVEL = 3;
+/** Fraction of the viewport a zoomed-in year/month/week grid is fitted to. */
+export const VIEW_FIT_MARGIN = 0.9;
+/** Max time between two clicks to count as a double click (opens the day editor). */
+export const DOUBLE_CLICK_DELAY_MS = 250;
+/** Max pointer travel (screen px) between two clicks to count as a double click. */
+export const DOUBLE_CLICK_DISTANCE = 8;
+
 // ─── Animation ────────────────────────────────────────────────────────────────
 export const ANIMATION_DURATION_MS = 5000;
 export const ANIMATION_EASE_POWER = 1.8;
